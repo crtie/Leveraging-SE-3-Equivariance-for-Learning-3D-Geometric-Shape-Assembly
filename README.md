@@ -1,8 +1,21 @@
-### This is the official implementation of the paper "Leveraging SE(3)-Equivariance for Learning 3D Geometric Shape Assembly" (ICCV 2023)
+### This is the official implementation of the paper [Leveraging SE(3)-Equivariance for Learning 3D Geometric Shape Assembly](https://crtie.github.io/SE-3-part-assembly/) (ICCV 2023)
 
-project page: https://crtie.github.io/SE-3-part-assembly/
+[Project](https://crtie.github.io/SE-3-part-assembly/) | [Paper](https://arxiv.org/pdf/2309.06810.pdf) |[Video](https://youtu.be/pEtIAal-xgQ)
 
-code will be released before the conference.
+![teaser.png](teaser.png)
+
+
+## Environment Installation
+
+Install dependencies
+Our environment dependencies are included in the "BreakingBad\multi_part_assembly.egg-info\requires.txt" file. You can easily install them when you create a new conda environment in the first step.
+
+## Train Models
+
+To train models for **BreakingBad** dataset, pleas run
+```
+python BreakingBad/scripts/train.py --cfg_file configs/vnn/vnn-everyday.py
+```
 
 
 ## Citation
