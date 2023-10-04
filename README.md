@@ -7,8 +7,16 @@
 
 ## Environment Installation
 
-Install dependencies
-Our environment dependencies are included in the "BreakingBad\multi_part_assembly.egg-info\requires.txt" file. You can easily install them when you create a new conda environment in the first step.
+Our environment dependencies are included in the "BreakingBad\multi_part_assembly.egg-info\requires.txt" file. You can easily install them when you create a new conda environment.
+
+
+## Dataset Generation
+
+For **Breaking Bad** dataset, please download the dataset following https://breaking-bad-dataset.github.io/.
+
+For **Geometric Shape Mating** dataset, please generate the dataset following https://github.com/pairlab/NSM.
+Besides, you can download the dataset we generate in .
+
 
 ## Train Models
 
@@ -21,11 +29,13 @@ python BreakingBad/scripts/train.py --cfg_file configs/vnn/vnn-everyday.py
 ## Citation
 If you find this paper useful, please consider citing:
 ```
-@inproceedings{wu2023leveraging,
-  title={Leveraging SE(3) Equivariance for Learning 3D Geometric Shape Assembly},
-  author={Wu, Ruihai and Tie, Chenrui and Du, Yushi and Shen, Yan and Dong, Hao},
-  booktitle={IEEE International Conference on Computer Vision (ICCV)},
-  year={2023}
+@InProceedings{Wu_2023_ICCV,
+    author    = {Wu, Ruihai and Tie, Chenrui and Du, Yushi and Zhao, Yan and Dong, Hao},
+    title     = {Leveraging SE(3) Equivariance for Learning 3D Geometric Shape Assembly},
+    booktitle = {Proceedings of the IEEE/CVF International Conference on Computer Vision (ICCV)},
+    month     = {October},
+    year      = {2023},
+    pages     = {14311-14320}
 }
 ```
 
