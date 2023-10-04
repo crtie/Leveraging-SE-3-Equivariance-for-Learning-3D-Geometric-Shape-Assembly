@@ -1,6 +1,6 @@
 ### This is the official implementation of the paper [Leveraging SE(3)-Equivariance for Learning 3D Geometric Shape Assembly](https://crtie.github.io/SE-3-part-assembly/) (ICCV 2023)
 
-[Project](https://crtie.github.io/SE-3-part-assembly/) | [Paper](https://arxiv.org/pdf/2309.06810.pdf) |[Video](https://youtu.be/pEtIAal-xgQ)
+[Project](https://crtie.github.io/SE-3-part-assembly/) | [Paper](https://openaccess.thecvf.com/content/ICCV2023/html/Wu_Leveraging_SE3_Equivariance_for_Learning_3D_Geometric_Shape_Assembly_ICCV_2023_paper.html) | [Video](https://youtu.be/pEtIAal-xgQ)
 
 ![teaser.png](teaser.png)
 
@@ -15,7 +15,7 @@ Our environment dependencies are included in the "BreakingBad\multi_part_assembl
 For **Breaking Bad** dataset, please download the dataset following https://breaking-bad-dataset.github.io/.
 
 For **Geometric Shape Mating** dataset, please generate the dataset following https://github.com/pairlab/NSM.
-Besides, you can download the dataset we generate in .
+Besides, you can download the dataset we generate in https://www.dropbox.com/scl/fi/xigal4s4xmksie4ihm7su/ShapeNet_0103.zip?rlkey=54f9w1fcnc2fjm5xmijpmkzf5&dl=0.
 
 
 ## Train Models
