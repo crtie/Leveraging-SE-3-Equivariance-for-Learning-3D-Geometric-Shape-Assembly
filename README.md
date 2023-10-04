@@ -20,11 +20,25 @@ Besides, you can download the dataset we generate in https://www.dropbox.com/scl
 
 ## Train Models
 
-To train models for **BreakingBad** dataset, pleas run
+To train models for **Breaking Bad** dataset, pleas run
 ```
-python BreakingBad/scripts/train.py --cfg_file configs/vnn/vnn-everyday.py
+cd BreakingBad
+python scripts/train.py --cfg_file configs/vnn/vnn-everyday.py
 ```
 
+To train models for **Geometric Shape Mating** dataset, pleas run
+```
+cd GSM
+python script/train_eqv_CR.py --cfg_file train_vnn_pn.yml
+```
+
+
+## Evaluate Models
+To evaluate models for **Geometric Shape Mating** dataset, pleas run
+```
+cd GSM
+python script/eval_eqv_CR.py --cfg_file eval_vnn_pn.yml
+```
 
 ## Citation
 If you find this paper useful, please consider citing:

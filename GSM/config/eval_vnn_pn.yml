@@ -1,0 +1,33 @@
+exp:
+    name: 'vnn'
+    checkpoint_dir: 'checkpoints'
+    num_workers: 8
+    batch_size: 48
+    num_epochs: 10000
+    log_dir: '/DATA/disk1/duyushi/NSM_log/vnn'
+
+model:
+    encoder: 'vn_dgcnn'
+    pose_predictor_quat: 'original'
+    pose_predictor_rot: 'original'
+    pose_predictor_trans: 'original'
+    point_loss: 'True'
+    recon_loss: 'False'
+    corr_module: 'yes'
+    pc_feat_dim: 512
+    num_heads: 4
+    num_blocks: 1
+
+#gpus: [0,1,2,3]
+
+data:
+    root_dir: '/DATA/disk1/duyushi/NSM_data/ShapeNet_0103'
+    train_csv_file: '/DATA/disk1/duyushi/NSM_data/stats_0103/Train_ShapeNet_Data_List.txt'
+    val_csv_file: '/DATA/disk1/duyushi/NSM_data/stats_0103/Val_ShapeNet_Data_List.txt'
+    num_pc_points: 1024
+
+optimizer:
+    lr: 1e-4
+    lr_decay: 0.0
+    weight_decay: 1e-6
+    lr_clip: 1e-5
