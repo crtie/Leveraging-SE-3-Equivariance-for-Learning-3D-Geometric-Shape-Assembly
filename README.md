@@ -25,7 +25,6 @@ To train models for **Breaking Bad** dataset, pleas run
 cd BreakingBad
 python scripts/train.py --cfg_file configs/vnn/vnn-everyday.py
 ```
-As we use pytorchlightning, evaluation is automatically performed after each epoch.
 
 To train models for **Geometric Shape Mating** dataset, pleas run
 ```
@@ -35,6 +34,9 @@ python script/train_eqv_CR.py --cfg_file train_vnn_pn.yml
 
 
 ## Evaluate Models
+
+The evaluation of models in **Breaking Bad** dataset is automatically performed during training. 
+
 To evaluate models for **Geometric Shape Mating** dataset, pleas run
 ```
 cd GSM
