@@ -219,19 +219,6 @@ class ShapeAssemblyDataset(data.Dataset):
             elif feat == 'total_pc':
                 data_feats['total_pc'] = gt_pcs_total.T
 
-            elif feat == 'src_quat':
-
-                ''' attention!!!!! '''
-                # quaternion in scipy.spatial.transform import Rotation: (x, y, z, w)
-                # quaternion in pytorch3d/transforms3d: (w, x, y, z)
-                data_feats['src_quat'] = np.array([quat_A[3], quat_A[0], quat_A[1], quat_A[2]])
-                # print('**********below')
-                # print('src_quat: ', data_feats['src_quat'])
-                # print('**********above')
-
-            elif feat == 'tgt_quat':
-                data_feats['tgt_quat'] = np.array([quat_B[3], quat_B[0], quat_B[1], quat_B[2]])
-
             elif feat == 'src_rot':
                 data_feats['src_rot'] = rot_A
 
