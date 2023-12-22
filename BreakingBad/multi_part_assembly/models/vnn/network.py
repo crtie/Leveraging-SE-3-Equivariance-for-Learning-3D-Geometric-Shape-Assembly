@@ -50,8 +50,6 @@ class VNNModel(BaseModel):
         self.close_eps = self.cfg.model.close_eps
         self.iters = 0
         self.flag = True
-        print(cfg)
-        set_trace()
 
     def init_encoder(self):
         if self.cfg.model.encoder == "dgcnn":
@@ -200,7 +198,7 @@ class VNNModel(BaseModel):
         )  # (batch_size, num_parts, 2*feat_dim, 3), (batch_size, num_parts, 2*feat_dim, 2*feat_dim)
         #! calc global inv feats
         global_inv_feats = self._recon_pts(inv_feats, part_valids)
-        global_inv_feats = torch.mean(global_inv_feats, dim=1).unsqueeze(1).unsqueeze(3).repeat(1,P,1,3)
+        global_inv_feats = torch.mean(global_inv_feats, dim=1).unsqueeze(1).unsqueeze(3).repeat(1,P,1,1)
         
         # (batch_size,2*feat_dim, 2*feat_dim)
         #! calc global equiv feats arter correlation
