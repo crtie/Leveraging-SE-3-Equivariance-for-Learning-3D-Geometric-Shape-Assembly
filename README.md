@@ -28,7 +28,7 @@ python scripts/train.py --cfg_file configs/vnn/vnn-everyday.py
 
 To train models for **Geometric Shape Mating** dataset, pleas run
 ```
-cd GSM
+cd NSM
 python script/train_eqv_CR.py --cfg_file train_vnn_pn.yml
 ```
 
@@ -39,7 +39,7 @@ The evaluation of models in **Breaking Bad** dataset is automatically performed 
 
 To evaluate models for **Geometric Shape Mating** dataset, pleas run
 ```
-cd GSM
+cd NSM
 python script/eval_eqv_CR.py --cfg_file eval_vnn_pn.yml
 ```
 
