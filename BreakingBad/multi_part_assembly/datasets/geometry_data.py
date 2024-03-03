@@ -20,7 +20,7 @@ class GeometryPartDataset(Dataset):
         data_dir,
         data_fn,
         data_keys,
-        category='',
+        category='BeerBottle',
         num_points=1000,
         min_num_part=2,
         max_num_part=20,

@@ -4,8 +4,8 @@ from yacs.config import CfgNode as CN
 
 _C = CN()
 _C.dataset = 'geometry'
-_C.data_dir = '/mnt/data/BreakingBad'
-_C.data_fn = 'artifact.{}.txt'
+_C.data_dir = 'multi_part_assembly/data'
+_C.data_fn = 'data_split/artifact.{}.txt'
 _C.data_keys = ('part_ids', )
 _C.category = ''  # empty means all categories
 _C.rot_range = -1.  # rotation range for curriculum learning

@@ -4,10 +4,10 @@ from yacs.config import CfgNode as CN
 
 _C = CN()
 _C.dataset = 'geometry'
-_C.data_dir = '/DATA/disk1/duyushi/dataverse_files'
-_C.data_fn = 'everyday.{}.txt'
+_C.data_dir = 'multi_part_assembly/data'
+_C.data_fn = 'data_split/everyday.{}.txt'
 _C.data_keys = ('part_ids', )
-_C.category = ''  # empty means all categories
+_C.category = 'BeerBottle'  # empty means all categories
 _C.rot_range = -1.  # rotation range for curriculum learning
 _C.num_pc_points = 512  # points per part
 _C.min_num_part = 2
