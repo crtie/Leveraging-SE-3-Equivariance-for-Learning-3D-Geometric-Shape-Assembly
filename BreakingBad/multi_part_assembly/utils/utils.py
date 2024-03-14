@@ -1,7 +1,6 @@
 import copy
 import pickle
 import numpy as np
-import open3d as o3d
 
 import torch.nn as nn
 from torch.nn import LayerNorm, GroupNorm
@@ -40,10 +39,7 @@ def save_pc(pc, file):
         pc (np.ndarray): [N, 3]
         file (str)
     """
-    pcd = o3d.geometry.PointCloud()
-    pcd.points = o3d.utility.Vector3dVector(pc)
-    o3d.io.write_point_cloud(file, pcd)
-
+    np.save(file, pc)
 
 def colorize_part_pc(part_pc, colors):
     """Colorize part point cloud.

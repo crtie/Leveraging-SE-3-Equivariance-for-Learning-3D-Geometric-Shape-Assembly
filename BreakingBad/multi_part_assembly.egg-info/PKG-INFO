@@ -2,21 +2,13 @@ Metadata-Version: 2.1
 Name: multi-part-assembly
 Version: 0.2.0
 Summary: Code for Learning 3D Geometric Shape Assembly
-Home-page: 
+Home-page: UNKNOWN
 Author: Ziyi Wu
 Author-email: ziyiwu@cs.toronto.edu
+License: UNKNOWN
 Keywords: multi part shape assembly
+Platform: UNKNOWN
 License-File: LICENSE
-Requires-Dist: numpy
-Requires-Dist: pyyaml
-Requires-Dist: trimesh
-Requires-Dist: wandb
-Requires-Dist: torch
-Requires-Dist: pytorch_lightning
-Requires-Dist: tqdm
-Requires-Dist: yacs
-Requires-Dist: open3d
-Requires-Dist: pytorch3d
-Requires-Dist: einops
 
 Code for Learning 3D Geometric Shape Assembly
+

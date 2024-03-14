@@ -3,7 +3,7 @@ import sys
 import pwd
 import argparse
 import importlib
-
+import wandb
 import torch
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
@@ -70,7 +70,8 @@ def main(cfg):
         assembly_callback = PCAssemblyLogCallback(cfg.exp.val_sample_vis,
                                                   train_loader, val_loader)
         callbacks.append(assembly_callback)
-
+    wandb.init(mode="offline")
+    wandb.login(key=os.environ['WANDB_API_KEY'],relogin=True)  
     logger = WandbLogger(
         project='Multi-Part-Assembly',
         name=logger_name,
