@@ -21,37 +21,57 @@ The provided code under `__main__` can decompress the entire Breaking Bad
     dataset which consists of three subsets `everyday`, `artiface`, `other`.
 """
 
+import argparse
 import os
 import time
-import argparse
 
-import numpy as np
-from tqdm import tqdm
-from scipy.sparse import load_npz
 import igl
+import numpy as np
+from scipy.sparse import load_npz
+from tqdm import tqdm
 
 ALL_CATEGORY = [
-    'BeerBottle', 'Bowl', 'Cup', 'DrinkingUtensil', 'Mug', 'Plate', 'Spoon',
-    'Teacup', 'ToyFigure', 'WineBottle', 'Bottle', 'Cookie', 'DrinkBottle',
-    'Mirror', 'PillBottle', 'Ring', 'Statue', 'Teapot', 'Vase', 'WineGlass'
+    "BeerBottle",
+    "Bowl",
+    "Cup",
+    "DrinkingUtensil",
+    "Mug",
+    "Plate",
+    "Spoon",
+    "Teacup",
+    "ToyFigure",
+    "WineBottle",
+    "Bottle",
+    "Cookie",
+    "DrinkBottle",
+    "Mirror",
+    "PillBottle",
+    "Ring",
+    "Statue",
+    "Teapot",
+    "Vase",
+    "WineGlass",
 ]
-ALL_SUBSET = ['everyday', 'artifact', 'other']
+ALL_SUBSET = ["everyday", "artifact", "other"]
 
 
 def decompress_mesh(mesh_dir_full_path, save_dir):
     """Decompress all the fractures of a mesh."""
     # Skip failed meshes
-    if not os.path.isdir(mesh_dir_full_path) or \
-            len(os.listdir(mesh_dir_full_path)) == 0:
+    if (
+        not os.path.isdir(mesh_dir_full_path)
+        or len(os.listdir(mesh_dir_full_path)) == 0
+    ):
         return 0
     # Read main mesh and data
     num_fracs = 0
-    compressed_mesh_path = os.path.join(mesh_dir_full_path,
-                                        "compressed_mesh.obj")
-    compressed_data_path = os.path.join(mesh_dir_full_path,
-                                        "compressed_data.npz")
-    fine_vertices, fine_triangles = igl.read_triangle_mesh(
-        compressed_mesh_path)
+    compressed_mesh_path = os.path.join(
+        mesh_dir_full_path, "compressed_mesh.obj"
+    )
+    compressed_data_path = os.path.join(
+        mesh_dir_full_path, "compressed_data.npz"
+    )
+    fine_vertices, fine_triangles = igl.read_triangle_mesh(compressed_mesh_path)
     piece_to_fine_vertices_matrix = load_npz(compressed_data_path)
     # Now, go over all fractures
     for frac_dir in os.listdir(mesh_dir_full_path):
@@ -62,26 +82,29 @@ def decompress_mesh(mesh_dir_full_path, save_dir):
         frac_save_path = os.path.join(save_dir, frac_dir)
         os.makedirs(frac_save_path, exist_ok=True)
         # Load fracture data
-        frac_data_path = os.path.join(frac_dir_full_path,
-                                      "compressed_fracture.npy")
+        frac_data_path = os.path.join(
+            frac_dir_full_path, "compressed_fracture.npy"
+        )
         piece_labels_after_impact = np.load(frac_data_path)
         # Now actually construct the meshes to write
-        fine_vertex_labels_after_impact = \
+        fine_vertex_labels_after_impact = (
             piece_to_fine_vertices_matrix @ piece_labels_after_impact
+        )
         n_pieces_after_impact = int(np.max(piece_labels_after_impact) + 1)
         for i in range(n_pieces_after_impact):
-            tri_labels = \
-                fine_vertex_labels_after_impact[fine_triangles[:, 0]]
+            tri_labels = fine_vertex_labels_after_impact[fine_triangles[:, 0]]
             if np.any(tri_labels == i):
                 vi, fi = igl.remove_unreferenced(
-                    fine_vertices, fine_triangles[tri_labels == i, :])[:2]
+                    fine_vertices, fine_triangles[tri_labels == i, :]
+                )[:2]
             else:
                 continue
             ui, I, J, _ = igl.remove_duplicate_vertices(vi, fi, 1e-10)
             gi = J[fi]
             # Now we write the mesh ui, gi
-            write_file_name = os.path.join(frac_save_path,
-                                           "piece_" + str(i) + ".obj")
+            write_file_name = os.path.join(
+                frac_save_path, "piece_" + str(i) + ".obj"
+            )
             igl.write_triangle_mesh(write_file_name, ui, gi)
             num_fracs = num_fracs + 1
 
@@ -101,73 +124,82 @@ def decompress_category(category_dir, save_dir):
         num_fracs += decompress_mesh(mesh_dir_full_path, mesh_save_dir)
 
     total_time = time.time() - t0
-    print("Decompressed a total of", str(num_fracs), "fracture pieces in",
-          round(total_time, 3), "seconds.")
+    print(
+        "Decompressed a total of",
+        str(num_fracs),
+        "fracture pieces in",
+        round(total_time, 3),
+        "seconds.",
+    )
 
 
 def process_everyday(data_root, category):
-    if not os.path.isdir(os.path.join(data_root, 'everyday_compressed')):
-        print('compressed everyday subset does not exist, skipping...')
+    if not os.path.isdir(os.path.join(data_root, "everyday_compressed")):
+        print("compressed everyday subset does not exist, skipping...")
         return
-    if category.lower() == 'all':
+    if category.lower() == "all":
         category = ALL_CATEGORY.copy()
     else:
         category = [category]
     for cat in category:
-        cat_dir = os.path.join(data_root, 'everyday_compressed', cat)
-        save_dir = os.path.join(data_root, 'everyday', cat)
+        cat_dir = os.path.join(data_root, "everyday_compressed", cat)
+        save_dir = os.path.join(data_root, "everyday", cat)
         decompress_category(cat_dir, save_dir)
 
 
 def process_artifact(data_root):
-    cat_dir = os.path.join(data_root, 'artifact_compressed')
-    if not os.path.isdir(os.path.join(data_root, 'artifact_compressed')):
-        print('compressed artifact subset does not exist, skipping...')
+    cat_dir = os.path.join(data_root, "artifact_compressed")
+    if not os.path.isdir(os.path.join(data_root, "artifact_compressed")):
+        print("compressed artifact subset does not exist, skipping...")
         return
-    save_dir = os.path.join(data_root, 'artifact')
+    save_dir = os.path.join(data_root, "artifact")
     decompress_category(cat_dir, save_dir)
 
 
 def process_other(data_root):
-    cat_dir = os.path.join(data_root, 'other_compressed')
-    if not os.path.isdir(os.path.join(data_root, 'other_compressed')):
-        print('compressed other subset does not exist, skipping...')
+    cat_dir = os.path.join(data_root, "other_compressed")
+    if not os.path.isdir(os.path.join(data_root, "other_compressed")):
+        print("compressed other subset does not exist, skipping...")
         return
-    save_dir = os.path.join(data_root, 'other')
+    save_dir = os.path.join(data_root, "other")
     decompress_category(cat_dir, save_dir)
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Data decompression')
-    parser.add_argument('--data_root', required=True, type=str)
+    parser = argparse.ArgumentParser(description="Data decompression")
+    parser.add_argument("--data_root", required=True, type=str)
     parser.add_argument(
-        '--subset',
+        "--subset",
         type=str,
         required=True,
-        choices=ALL_SUBSET + [
-            'all',
+        choices=ALL_SUBSET
+        + [
+            "all",
         ],
-        help='data subset')
+        help="data subset",
+    )
     parser.add_argument(
-        '--category',
+        "--category",
         type=str,
-        default='all',
-        choices=ALL_CATEGORY + [
-            'all',
+        default="all",
+        choices=ALL_CATEGORY
+        + [
+            "all",
         ],
-        help='category in everyday subset')
+        help="category in everyday subset",
+    )
     args = parser.parse_args()
 
-    if args.subset == 'all':
+    if args.subset == "all":
         subsets = ALL_SUBSET
     else:
         subsets = [args.subset]
     for subset in subsets:
-        if subset == 'everyday':
+        if subset == "everyday":
             process_everyday(args.data_root, args.category)
-        elif subset == 'artifact':
+        elif subset == "artifact":
             process_artifact(args.data_root)
-        elif subset == 'other':
+        elif subset == "other":
             process_other(args.data_root)
         else:
-            raise NotImplementedError('Unknown subset:', subset)
+            raise NotImplementedError("Unknown subset:", subset)

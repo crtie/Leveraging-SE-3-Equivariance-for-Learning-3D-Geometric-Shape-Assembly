@@ -14,16 +14,16 @@ class IdentityModel(BaseModel):
             data_dict should contains:
                 - part_pcs: [B, P, N, 3]
         """
-        part_pcs = data_dict['part_pcs']
+        part_pcs = data_dict["part_pcs"]
         B, P = part_pcs.shape[:2]
         zero_pose = self.zero_pose.repeat(B, P, 1).type_as(part_pcs)
         rot = self._wrap_rotation(zero_pose[..., :-3])
         trans = zero_pose[..., -3:]
 
         pred_dict = {
-            'rot': rot,  # [B, P, 4/(3, 3)], Rotation3D
-            'trans': trans,  # [B, P, 3]
-            'pre_pose_feats': None,  # useless
+            "rot": rot,  # [B, P, 4/(3, 3)], Rotation3D
+            "trans": trans,  # [B, P, 3]
+            "pre_pose_feats": None,  # useless
         }
         return pred_dict
 
@@ -44,7 +44,7 @@ class IdentityModel(BaseModel):
             Also returns computed features before pose regressing for reusing.
         """
         forward_dict = {
-            'part_pcs': data_dict['part_pcs'],
+            "part_pcs": data_dict["part_pcs"],
         }
 
         # prediction

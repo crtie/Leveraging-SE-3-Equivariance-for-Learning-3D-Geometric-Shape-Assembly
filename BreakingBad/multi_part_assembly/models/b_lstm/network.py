@@ -1,7 +1,9 @@
 import torch
-
-from multi_part_assembly.models import BaseModel
-from multi_part_assembly.models import build_encoder, StocasticPoseRegressor
+from multi_part_assembly.models import (
+    BaseModel,
+    StocasticPoseRegressor,
+    build_encoder,
+)
 
 from .seq2seq import Seq2Seq
 
@@ -32,8 +34,9 @@ class LSTMModel(BaseModel):
 
     def _init_seq2seq(self):
         """Bi-LSTM seq2seq module."""
-        seq2seq = Seq2Seq(self.pc_feat_dim, self.pc_feat_dim,
-                          self.cfg.model.lstm_hidden_size)
+        seq2seq = Seq2Seq(
+            self.pc_feat_dim, self.pc_feat_dim, self.cfg.model.lstm_hidden_size
+        )
         return seq2seq
 
     def _init_pose_predictor(self):
@@ -54,7 +57,7 @@ class LSTMModel(BaseModel):
     def _extract_part_feats(self, part_pcs, part_valids):
         """Extract per-part point cloud features."""
         B, P, N, _ = part_pcs.shape  # [B, P, N, 3]
-        valid_mask = (part_valids == 1)
+        valid_mask = part_valids == 1
         # shared-weight encoder
         valid_pcs = part_pcs[valid_mask]  # [n, N, 3]
         valid_feats = self.encoder(valid_pcs)  # [n, C]
@@ -75,11 +78,11 @@ class LSTMModel(BaseModel):
             may contains:
                 - part_feats: [B, P, C'] (reused) or None
         """
-        part_feats = data_dict.get('part_feats', None)
+        part_feats = data_dict.get("part_feats", None)
 
         if part_feats is None:
-            part_pcs = data_dict['part_pcs']
-            part_valids = data_dict['part_valids']
+            part_pcs = data_dict["part_pcs"]
+            part_valids = data_dict["part_valids"]
             part_feats = self._extract_part_feats(part_pcs, part_valids)
 
         # prepare seq2seq input
@@ -88,20 +91,20 @@ class LSTMModel(BaseModel):
         output_seq, _ = self.seq2seq(
             part_feats_seq,
             target_seq,
-            valids=data_dict['part_valids'],
+            valids=data_dict["part_valids"],
         )
         output_seq = output_seq.squeeze(2).transpose(0, 1)  # [B, P, C']
         # MLP predict poses
-        part_label = data_dict['part_label'].type_as(part_feats)
-        inst_label = data_dict['instance_label'].type_as(part_feats)
+        part_label = data_dict["part_label"].type_as(part_feats)
+        inst_label = data_dict["instance_label"].type_as(part_feats)
         feats = torch.cat([output_seq, part_label, inst_label], dim=-1)
         rot, trans = self.pose_predictor(feats)
         rot = self._wrap_rotation(rot)
 
         pred_dict = {
-            'rot': rot,  # [B, P, 4/(3, 3)], Rotation3D
-            'trans': trans,  # [B, P, 3]
-            'part_feats': part_feats,  # [B, P, C']
+            "rot": rot,  # [B, P, 4/(3, 3)], Rotation3D
+            "trans": trans,  # [B, P, 3]
+            "part_feats": part_feats,  # [B, P, C']
         }
         return pred_dict
 
@@ -121,21 +124,21 @@ class LSTMModel(BaseModel):
             several times and select the min one as final loss.
             Also returns computed features before pose regressing for reusing.
         """
-        part_pcs, valids = data_dict['part_pcs'], data_dict['part_valids']
+        part_pcs, valids = data_dict["part_pcs"], data_dict["part_valids"]
         forward_dict = {
-            'part_pcs': part_pcs,
-            'part_valids': valids,
-            'part_label': data_dict['part_label'],
-            'instance_label': data_dict['instance_label'],
-            'part_feats': out_dict.get('part_feats', None),
+            "part_pcs": part_pcs,
+            "part_valids": valids,
+            "part_label": data_dict["part_label"],
+            "instance_label": data_dict["instance_label"],
+            "part_feats": out_dict.get("part_feats", None),
         }
 
         # prediction
         out_dict = self.forward(forward_dict)
-        part_feats = out_dict['part_feats']
+        part_feats = out_dict["part_feats"]
 
         # loss computation
         loss_dict, out_dict = self._calc_loss(out_dict, data_dict)
-        out_dict['part_feats'] = part_feats
+        out_dict["part_feats"] = part_feats
 
         return loss_dict, out_dict

@@ -1,16 +1,27 @@
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
 
 requirements = [
-    'numpy', 'pyyaml', 'trimesh', 'wandb', 'torch', 'pytorch_lightning',
-    'tqdm', 'yacs', 'pytorch3d', 'einops'
+    "numpy",
+    "pyyaml",
+    "trimesh",
+    "wandb",
+    "torch",
+    "pytorch_lightning",
+    "tqdm",
+    "yacs",
+    "pytorch3d",
+    "einops",
+    "isort==5.9.3",
+    "black==22.3.0",
+    "autoflake==1.4",
 ]
 
 
 def get_version():
-    version_file = 'multi_part_assembly/version.py'
-    with open(version_file, 'r') as f:
-        exec(compile(f.read(), version_file, 'exec'))
-    return locals()['__version__']
+    version_file = "multi_part_assembly/version.py"
+    with open(version_file, "r") as f:
+        exec(compile(f.read(), version_file, "exec"))
+    return locals()["__version__"]
 
 
 setup(

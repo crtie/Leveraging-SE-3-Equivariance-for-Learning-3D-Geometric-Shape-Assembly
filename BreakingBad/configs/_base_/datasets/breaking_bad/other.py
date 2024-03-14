@@ -3,12 +3,12 @@
 from yacs.config import CfgNode as CN
 
 _C = CN()
-_C.dataset = 'geometry'
-_C.data_dir = './data/breaking_bad'
-_C.data_fn = 'other.{}.txt'
-_C.data_keys = ('part_ids', )
-_C.category = ''  # empty means all categories
-_C.rot_range = -1.  # rotation range for curriculum learning
+_C.dataset = "geometry"
+_C.data_dir = "./data/breaking_bad"
+_C.data_fn = "other.{}.txt"
+_C.data_keys = ("part_ids",)
+_C.category = ""  # empty means all categories
+_C.rot_range = -1.0  # rotation range for curriculum learning
 _C.num_pc_points = 1000  # points per part
 _C.min_num_part = 2
 _C.max_num_part = 20
