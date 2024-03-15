@@ -1,28 +1,29 @@
 import numpy as np
 import torch
-from chamfer import chamfer_distance, nn_distance
 from torch.autograd import gradcheck
 
+from chamfer import chamfer_distance, nn_distance
 
-def bpdist2(feature1, feature2, data_format="NWC"):
+
+def bpdist2(feature1, feature2, data_format='NWC'):
     """This version has a high memory usage but more compatible(accurate) with optimized Chamfer Distance."""
-    if data_format == "NCW":
+    if data_format == 'NCW':
         diff = feature1.unsqueeze(3) - feature2.unsqueeze(2)
-        distance = torch.sum(diff**2, dim=1)
-    elif data_format == "NWC":
+        distance = torch.sum(diff ** 2, dim=1)
+    elif data_format == 'NWC':
         diff = feature1.unsqueeze(2) - feature2.unsqueeze(1)
-        distance = torch.sum(diff**2, dim=3)
+        distance = torch.sum(diff ** 2, dim=3)
     else:
-        raise ValueError("Unsupported data format: {}".format(data_format))
+        raise ValueError('Unsupported data format: {}'.format(data_format))
     return distance
 
 
-def nn_distance_torch(xyz1, xyz2, data_format="NWC"):
+def nn_distance_torch(xyz1, xyz2, data_format='NWC'):
     assert torch.is_tensor(xyz1) and xyz1.dim() == 3
     assert torch.is_tensor(xyz2) and xyz2.dim() == 3
-    if data_format == "NCW":
+    if data_format == 'NCW':
         assert xyz1.size(1) == 3 and xyz2.size(1) == 3
-    elif data_format == "NWC":
+    elif data_format == 'NWC':
         assert xyz1.size(2) == 3 and xyz2.size(2) == 3
     distance = bpdist2(xyz1, xyz2, data_format)
     dist1, idx1 = distance.min(2)
@@ -38,19 +39,14 @@ def test_chamfer_cpu():
     num_points = 2048
     xyz1 = torch.rand(batch_size, num_points, 3).float()
     xyz2 = torch.rand(batch_size, num_points, 3).float()
-    # xyz1 = torch.tensor([[[0, 0, 1], [1, 0, 0]]]).float()
-    # xyz2 = torch.tensor([[[0, 0, 1.1], [1.2, 0, 0]]]).float()
+    #xyz1 = torch.tensor([[[0, 0, 1], [1, 0, 0]]]).float()
+    #xyz2 = torch.tensor([[[0, 0, 1.1], [1.2, 0, 0]]]).float()
     print(xyz1.device, xyz1.shape)
     print(xyz2.device, xyz2.shape)
-    # print(xyz1.device, xyz2.device)
+    #print(xyz1.device, xyz2.device)
 
     # check forward
-    (
-        dist1_desired,
-        idx1_desired,
-        dist2_desired,
-        idx2_desired,
-    ) = nn_distance_torch(xyz1, xyz2, "NWC")
+    dist1_desired, idx1_desired, dist2_desired, idx2_desired = nn_distance_torch(xyz1, xyz2, 'NWC')
     print(dist1_desired.device, dist1_desired.shape)
     print(dist2_desired.device, dist2_desired.shape)
 
@@ -69,23 +65,12 @@ def test_chamfer():
     xyz2 = xyz2.cuda()
 
     # check forward
-    dist1_actual, idx1_actual, dist2_actual, idx2_actual = nn_distance(
-        xyz1, xyz2, transpose=False
-    )
-    (
-        dist1_desired,
-        idx1_desired,
-        dist2_desired,
-        idx2_desired,
-    ) = nn_distance_torch(xyz1, xyz2, "NWC")
+    dist1_actual, idx1_actual, dist2_actual, idx2_actual = nn_distance(xyz1, xyz2, transpose=False)
+    dist1_desired, idx1_desired, dist2_desired, idx2_desired = nn_distance_torch(xyz1, xyz2, 'NWC')
 
     # np.testing
-    np.testing.assert_allclose(
-        dist1_actual.cpu().numpy(), dist1_desired.cpu().numpy(), atol=1e-6
-    )
-    np.testing.assert_equal(
-        idx1_actual.cpu().numpy(), idx1_desired.cpu().numpy()
-    )
+    np.testing.assert_allclose(dist1_actual.cpu().numpy(), dist1_desired.cpu().numpy(), atol=1e-6)
+    np.testing.assert_equal(idx1_actual.cpu().numpy(), idx1_desired.cpu().numpy())
     # torch built-in
     assert dist2_desired.allclose(dist2_actual)
     assert idx2_desired.equal(idx2_actual)
@@ -126,23 +111,12 @@ def test_chamfer():
     xyz2 = xyz2.cuda()
 
     # check forward
-    dist1_actual, idx1_actual, dist2_actual, idx2_actual = nn_distance(
-        xyz1, xyz2, transpose=True
-    )
-    (
-        dist1_desired,
-        idx1_desired,
-        dist2_desired,
-        idx2_desired,
-    ) = nn_distance_torch(xyz1, xyz2, "NCW")
+    dist1_actual, idx1_actual, dist2_actual, idx2_actual = nn_distance(xyz1, xyz2, transpose=True)
+    dist1_desired, idx1_desired, dist2_desired, idx2_desired = nn_distance_torch(xyz1, xyz2, 'NCW')
 
     # np.testing
-    np.testing.assert_allclose(
-        dist1_actual.cpu().numpy(), dist1_desired.cpu().numpy(), atol=1e-6
-    )
-    np.testing.assert_equal(
-        idx1_actual.cpu().numpy(), idx1_desired.cpu().numpy()
-    )
+    np.testing.assert_allclose(dist1_actual.cpu().numpy(), dist1_desired.cpu().numpy(), atol=1e-6)
+    np.testing.assert_equal(idx1_actual.cpu().numpy(), idx1_desired.cpu().numpy())
     # torch built-in
     assert dist2_desired.allclose(dist2_actual)
     assert idx2_desired.equal(idx2_actual)
@@ -158,6 +132,5 @@ def test_chamfer():
     xyz2.requires_grad = True
     gradcheck(chamfer_distance, (xyz1, xyz2, True))
 
-
-# test_chamfer()
+#test_chamfer()
 test_chamfer_cpu()

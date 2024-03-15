@@ -1,6 +1,6 @@
-import importlib
 import os
 import sys
+import importlib
 
 
 def merge_cfg(base_cfg, base_dir, cfg_lst):

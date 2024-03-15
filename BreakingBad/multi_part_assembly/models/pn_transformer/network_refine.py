@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+
 from multi_part_assembly.models import StocasticPoseRegressor
 from multi_part_assembly.utils import _get_clones
 
@@ -88,14 +89,14 @@ class PNTransformerRefine(PNTransformer):
             may contains:
                 - pc_feats: [B, P, C] (reused) or None
         """
-        pc_feats = data_dict.get("pc_feats", None)
-        part_pcs, part_valids = data_dict["part_pcs"], data_dict["part_valids"]
+        pc_feats = data_dict.get('pc_feats', None)
+        part_pcs, part_valids = data_dict['part_pcs'], data_dict['part_valids']
         if pc_feats is None:
             pc_feats = self._extract_part_feats(part_pcs, part_valids)
 
         part_feats = pc_feats
-        part_label = data_dict["part_label"].type_as(pc_feats)
-        inst_label = data_dict["instance_label"].type_as(pc_feats)
+        part_label = data_dict['part_label'].type_as(pc_feats)
+        inst_label = data_dict['instance_label'].type_as(pc_feats)
         B, P, _ = inst_label.shape
         # init pose as identity
         pose = self.zero_pose.repeat(B, P, 1).type_as(part_feats).detach()
@@ -108,12 +109,11 @@ class PNTransformerRefine(PNTransformer):
             # directly add positional encoding as in ViT
             in_feats = part_feats + pos_enc
             # transformer feature fusion, [B, P, C]
-            valid_mask = part_valids == 1
+            valid_mask = (part_valids == 1)
             corr_feats = self.corr_module[i](in_feats, valid_mask)
             # MLP predict poses
-            feats = torch.cat(
-                [corr_feats, part_label, inst_label, pose], dim=-1
-            )
+            feats = torch.cat([corr_feats, part_label, inst_label, pose],
+                              dim=-1)
             if self.pose_pc_feat:
                 feats = torch.cat([pc_feats, feats], dim=-1)
             rot, trans = self.pose_predictor[i](feats)
@@ -133,43 +133,43 @@ class PNTransformerRefine(PNTransformer):
             pred_trans = pred_trans[-1]
 
         pred_dict = {
-            "rot": pred_rot,  # [(T, )B, P, 4/(3, 3)], Rotation3D
-            "trans": pred_trans,  # [(T, )B, P, 3]
-            "pc_feats": pc_feats,  # [B, P, C]
+            'rot': pred_rot,  # [(T, )B, P, 4/(3, 3)], Rotation3D
+            'trans': pred_trans,  # [(T, )B, P, 3]
+            'pc_feats': pc_feats,  # [B, P, C]
         }
         return pred_dict
 
     def _loss_function(self, data_dict, out_dict={}, optimizer_idx=-1):
         """Predict poses and calculate loss."""
-        part_pcs, valids = data_dict["part_pcs"], data_dict["part_valids"]
+        part_pcs, valids = data_dict['part_pcs'], data_dict['part_valids']
         forward_dict = {
-            "part_pcs": part_pcs,
-            "part_valids": valids,
-            "part_label": data_dict["part_label"],
-            "instance_label": data_dict["instance_label"],
-            "pc_feats": out_dict.get("pc_feats", None),
+            'part_pcs': part_pcs,
+            'part_valids': valids,
+            'part_label': data_dict['part_label'],
+            'instance_label': data_dict['instance_label'],
+            'pc_feats': out_dict.get('pc_feats', None),
         }
 
         # prediction
         out_dict = self.forward(forward_dict)
-        pc_feats = out_dict["pc_feats"]
+        pc_feats = out_dict['pc_feats']
 
         # loss computation
         if not self.training:
             loss_dict, out_dict = self._calc_loss(out_dict, data_dict)
-            out_dict["pc_feats"] = pc_feats
+            out_dict['pc_feats'] = pc_feats
             return loss_dict, out_dict
 
-        pred_trans, pred_rot = out_dict["trans"], out_dict["rot"]
+        pred_trans, pred_rot = out_dict['trans'], out_dict['rot']
         all_loss_dict = None
         for i in range(self.refine_steps):
-            pred_dict = {"rot": pred_rot[i], "trans": pred_trans[i]}
+            pred_dict = {'rot': pred_rot[i], 'trans': pred_trans[i]}
             loss_dict, out_dict = self._calc_loss(pred_dict, data_dict)
             if all_loss_dict is None:
-                all_loss_dict = {k: 0.0 for k in loss_dict.keys()}
+                all_loss_dict = {k: 0. for k in loss_dict.keys()}
             for k, v in loss_dict.items():
                 all_loss_dict[k] = all_loss_dict[k] + v
-                all_loss_dict[f"{k}_{i}"] = v
-        out_dict["pc_feats"] = pc_feats
+                all_loss_dict[f'{k}_{i}'] = v
+        out_dict['pc_feats'] = pc_feats
 
         return all_loss_dict, out_dict

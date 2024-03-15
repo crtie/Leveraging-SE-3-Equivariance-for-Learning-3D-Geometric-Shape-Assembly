@@ -3,11 +3,11 @@
 from yacs.config import CfgNode as CN
 
 _C = CN()
-_C.dataset = "partnet"
-_C.data_dir = "./data/partnet"
-_C.data_fn = "Lamp.{}.npy"
-_C.category = "Lamp"  # actually useless
-_C.data_keys = ("part_ids", "match_ids", "contact_points")
+_C.dataset = 'partnet'
+_C.data_dir = './data/partnet'
+_C.data_fn = 'Lamp.{}.npy'
+_C.category = 'Lamp'  # actually useless
+_C.data_keys = ('part_ids', 'match_ids', 'contact_points')
 _C.num_pc_points = 1000  # points per part
 _C.num_part_category = 83
 _C.min_num_part = 2

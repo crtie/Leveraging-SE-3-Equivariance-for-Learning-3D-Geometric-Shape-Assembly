@@ -1,25 +1,17 @@
-import numpy as np
-import pytorch_lightning as pl
 import torch
 import torch.optim as optim
-from multi_part_assembly.utils import (
-    CosineAnnealingWarmupRestarts,
-    Rotation3D,
-    calc_connectivity_acc,
-    calc_part_acc,
-    chamfer_distance,
-    colorize_part_pc,
-    filter_wd_parameters,
-    rot_cosine_loss,
-    rot_metrics,
-    rot_points_cd_loss,
-    rot_points_l2_loss,
-    shape_cd_loss,
-    trans_l2_loss,
-    trans_metrics,
-    transform_pc,
-)
+import pytorch_lightning as pl
+
+import numpy as np
 from scipy.optimize import linear_sum_assignment
+from pdb import set_trace
+from multi_part_assembly.utils import transform_pc, Rotation3D
+from multi_part_assembly.utils import colorize_part_pc, filter_wd_parameters
+from multi_part_assembly.utils import trans_l2_loss, rot_points_cd_loss, \
+    shape_cd_loss, rot_cosine_loss, rot_points_l2_loss, chamfer_distance
+from multi_part_assembly.utils import calc_part_acc, calc_connectivity_acc, \
+    trans_metrics, rot_metrics
+from multi_part_assembly.utils import CosineAnnealingWarmupRestarts
 
 
 class BaseModel(pl.LightningModule):
@@ -35,61 +27,54 @@ class BaseModel(pl.LightningModule):
     def _setup(self):
         # basic settings
         self.rot_type = self.cfg.model.rot_type
-        if self.rot_type == "quat":
+        if self.rot_type == 'quat':
             self.pose_dim = 3 + 4
             zero_pose = torch.zeros(1, 1, self.pose_dim)
-            zero_pose[..., 0] = 1.0
+            zero_pose[..., 0] = 1.
             self.zero_pose = zero_pose
-        elif self.rot_type == "rmat":
+        elif self.rot_type == 'rmat':
             self.pose_dim = 3 + 6
             zero_pose = torch.zeros(1, 1, self.pose_dim)
-            zero_pose[..., 0] = 1.0
-            zero_pose[..., 4] = 1.0
+            zero_pose[..., 0] = 1.
+            zero_pose[..., 4] = 1.
             self.zero_pose = zero_pose
         else:
             raise NotImplementedError(
-                f"rotation {self.rot_type} is not supported"
-            )
+                f'rotation {self.rot_type} is not supported')
 
         # data related
-        self.semantic = self.cfg.data.dataset != "geometry"
+        self.semantic = (self.cfg.data.dataset != 'geometry')
         self.max_num_part = self.cfg.data.max_num_part
 
         # model related
         self.pc_feat_dim = self.cfg.model.pc_feat_dim
-        self.use_part_label = "part_label" in self.cfg.data.data_keys
+        self.use_part_label = 'part_label' in self.cfg.data.data_keys
 
         # loss configs
-        self.sample_iter = self.cfg.loss.get("sample_iter", 1)
+        self.sample_iter = self.cfg.loss.get('sample_iter', 1)
 
     def forward(self, data_dict):
         """Forward pass to predict poses for each part."""
+        pass
 
     def training_step(self, data_dict, batch_idx, optimizer_idx=-1):
         loss_dict = self.forward_pass(
-            data_dict, mode="train", optimizer_idx=optimizer_idx
-        )
-        return loss_dict["loss"]
+            data_dict, mode='train', optimizer_idx=optimizer_idx)
+        return loss_dict['loss']
 
     def validation_step(self, data_dict, batch_idx):
-        loss_dict = self.forward_pass(data_dict, mode="val", optimizer_idx=-1)
+        loss_dict = self.forward_pass(data_dict, mode='val', optimizer_idx=-1)
         return loss_dict
 
     def validation_epoch_end(self, outputs):
         # avg_loss among all data
         # we need to consider different batch_size
-        func = (
-            torch.tensor
-            if isinstance(outputs[0]["batch_size"], int)
-            else torch.stack
-        )
-        batch_sizes = func(
-            [output.pop("batch_size") for output in outputs]
-        ).type_as(
-            outputs[0]["loss"]
-        )  # [num_batches]
+        func = torch.tensor if \
+            isinstance(outputs[0]['batch_size'], int) else torch.stack
+        batch_sizes = func([output.pop('batch_size') for output in outputs
+                            ]).type_as(outputs[0]['loss'])  # [num_batches]
         losses = {
-            f"val/{k}": torch.stack([output[k] for output in outputs])
+            f'val/{k}': torch.stack([output[k] for output in outputs])
             for k in outputs[0].keys()
         }  # each is [num_batches], stacked avg loss in each batch
         avg_loss = {
@@ -99,32 +84,29 @@ class BaseModel(pl.LightningModule):
         self.log_dict(avg_loss, sync_dist=True)
 
     def test_step(self, data_dict, batch_idx):
-        loss_dict = self.forward_pass(data_dict, mode="test", optimizer_idx=-1)
+        loss_dict = self.forward_pass(data_dict, mode='test', optimizer_idx=-1)
         return loss_dict
 
     def test_epoch_end(self, outputs):
         # avg_loss among all data
         # we need to consider different batch_size
-        if isinstance(outputs[0]["batch_size"], int):
+        if isinstance(outputs[0]['batch_size'], int):
             func_bs = torch.tensor
             func_loss = torch.stack
         else:
             func_bs = torch.cat
             func_loss = torch.cat
-        batch_sizes = func_bs(
-            [output.pop("batch_size") for output in outputs]
-        ).type_as(
-            outputs[0]["loss"]
-        )  # [num_batches]
+        batch_sizes = func_bs([output.pop('batch_size') for output in outputs
+                               ]).type_as(outputs[0]['loss'])  # [num_batches]
         losses = {
-            f"test/{k}": func_loss([output[k] for output in outputs])
+            f'test/{k}': func_loss([output[k] for output in outputs])
             for k in outputs[0].keys()
         }  # each is [num_batches], stacked avg loss in each batch
         avg_loss = {
             k: (v * batch_sizes).sum() / batch_sizes.sum()
             for k, v in losses.items()
         }
-        print("; ".join([f"{k}: {v.item():.6f}" for k, v in avg_loss.items()]))
+        print('; '.join([f'{k}: {v.item():.6f}' for k, v in avg_loss.items()]))
         # this is a hack to get results outside `Trainer.test()` function
         self.test_results = avg_loss
 
@@ -145,29 +127,23 @@ class BaseModel(pl.LightningModule):
         }
         """
         # wrap the GT rotation in a Rotation3D object
-        part_quat = data_dict.pop("part_quat")
-        data_dict["part_rot"] = Rotation3D(part_quat, rot_type="quat").convert(
-            self.rot_type
-        )
+        part_quat = data_dict.pop('part_quat')
+        data_dict['part_rot'] = \
+            Rotation3D(part_quat, rot_type='quat').convert(self.rot_type)
 
-        loss_dict = self.loss_function(
-            data_dict, optimizer_idx=optimizer_idx, mode=mode
-        )
+        loss_dict = self.loss_function(data_dict, optimizer_idx=optimizer_idx, mode=mode)
 
         # in training we log for every step
-        if mode == "train" and self.local_rank == 0:
-            log_dict = {f"{mode}/{k}": v.item() for k, v in loss_dict.items()}
+        if mode == 'train' and self.local_rank == 0:
+            log_dict = {f'{mode}/{k}': v.item() for k, v in loss_dict.items()}
             data_name = [
-                k
-                for k in self.trainer.profiler.recorded_durations.keys()
-                if "prepare_data" in k
+                k for k in self.trainer.profiler.recorded_durations.keys()
+                if 'prepare_data' in k
             ][0]
-            log_dict[
-                f"{mode}/data_time"
-            ] = self.trainer.profiler.recorded_durations[data_name][-1]
+            log_dict[f'{mode}/data_time'] = \
+                self.trainer.profiler.recorded_durations[data_name][-1]
             self.log_dict(
-                log_dict, logger=True, sync_dist=False, rank_zero_only=True
-            )
+                log_dict, logger=True, sync_dist=False, rank_zero_only=True)
 
         return loss_dict
 
@@ -203,9 +179,8 @@ class BaseModel(pl.LightningModule):
         return rind, cind
 
     @torch.no_grad()
-    def _match_parts(
-        self, part_pcs, pred_trans, pred_rot, gt_trans, gt_rot, match_ids
-    ):
+    def _match_parts(self, part_pcs, pred_trans, pred_rot, gt_trans, gt_rot,
+                     match_ids):
         """Used in semantic assembly. Match GT to predictions.
 
         Args:
@@ -250,20 +225,14 @@ class BaseModel(pl.LightningModule):
                 cur_gt_rot = new_gt_rot_tensor[ind, need_to_match_part]
 
                 _, matched_gt_ids = self._linear_sum_assignment(
-                    cur_pts,
-                    cur_pred_trans,
-                    cur_pred_rot,
-                    cur_gt_trans,
-                    cur_gt_rot,
-                )
+                    cur_pts, cur_pred_trans, cur_pred_rot, cur_gt_trans,
+                    cur_gt_rot)
 
                 # since row_idx is sorted, we can directly rearrange GT
-                new_gt_trans[ind, need_to_match_part] = gt_trans[
-                    ind, need_to_match_part
-                ][matched_gt_ids]
-                new_gt_rot_tensor[ind, need_to_match_part] = gt_rot_tensor[
-                    ind, need_to_match_part
-                ][matched_gt_ids]
+                new_gt_trans[ind, need_to_match_part] = \
+                    gt_trans[ind, need_to_match_part][matched_gt_ids]
+                new_gt_rot_tensor[ind, need_to_match_part] = \
+                    gt_rot_tensor[ind, need_to_match_part][matched_gt_ids]
 
         new_gt_rot = self._wrap_rotation(new_gt_rot_tensor)
         return new_gt_trans, new_gt_rot
@@ -273,26 +242,25 @@ class BaseModel(pl.LightningModule):
 
         Also compute evaluation metrics during testing.
         """
-        pred_trans, pred_rot = out_dict["trans"], out_dict["rot"]
+        pred_trans, pred_rot = out_dict['trans'], out_dict['rot']
 
         # matching GT with predictions for lowest loss in semantic assembly
-        part_pcs, valids = data_dict["part_pcs"], data_dict["part_valids"]
-        gt_trans, gt_rot = data_dict["part_trans"], data_dict["part_rot"]
+        part_pcs, valids = data_dict['part_pcs'], data_dict['part_valids']
+        gt_trans, gt_rot = data_dict['part_trans'], data_dict['part_rot']
         if self.semantic:
-            match_ids = data_dict["match_ids"]
-            new_trans, new_rot = self._match_parts(
-                part_pcs, pred_trans, pred_rot, gt_trans, gt_rot, match_ids
-            )
+            match_ids = data_dict['match_ids']
+            new_trans, new_rot = self._match_parts(part_pcs, pred_trans,
+                                                   pred_rot, gt_trans, gt_rot,
+                                                   match_ids)
         # do nothing in geometric assembly
         else:
-            new_trans, new_rot = (
-                gt_trans.detach().clone(),
-                gt_rot.detach().clone(),
-            )
+            new_trans, new_rot = \
+                gt_trans.detach().clone(), gt_rot.detach().clone()
 
         # computing loss
         trans_loss = trans_l2_loss(pred_trans, new_trans, valids)
-        rot_pt_cd_loss = rot_points_cd_loss(part_pcs, pred_rot, new_rot, valids)
+        rot_pt_cd_loss = rot_points_cd_loss(part_pcs, pred_rot, new_rot,
+                                            valids)
         transform_pt_cd_loss, gt_trans_pts, pred_trans_pts = shape_cd_loss(
             part_pcs,
             pred_trans,
@@ -316,33 +284,31 @@ class BaseModel(pl.LightningModule):
             # See the docstring of this loss function for more details.
         )
         loss_dict = {
-            "trans_loss": trans_loss,
-            "rot_pt_cd_loss": rot_pt_cd_loss,
-            "transform_pt_cd_loss": transform_pt_cd_loss,
+            'trans_loss': trans_loss,
+            'rot_pt_cd_loss': rot_pt_cd_loss,
+            'transform_pt_cd_loss': transform_pt_cd_loss,
         }  # all loss are of shape [B]
 
         # cosine regression loss on rotation
         if self.cfg.loss.use_rot_loss:
-            loss_dict["rot_loss"] = rot_cosine_loss(pred_rot, new_rot, valids)
+            loss_dict['rot_loss'] = rot_cosine_loss(pred_rot, new_rot, valids)
         # per-point l2 loss between rotated part point clouds
         if self.cfg.loss.use_rot_pt_l2_loss:
-            loss_dict["rot_pt_l2_loss"] = rot_points_l2_loss(
-                part_pcs, pred_rot, new_rot, valids
-            )
+            loss_dict['rot_pt_l2_loss'] = rot_points_l2_loss(
+                part_pcs, pred_rot, new_rot, valids)
 
         # some specific evaluation metrics calculated in eval
         if not self.training:
-            eval_dict = self._calc_metrics(
-                data_dict, out_dict, new_trans, new_rot
-            )
+            eval_dict = self._calc_metrics(data_dict, out_dict, new_trans,
+                                           new_rot)
             loss_dict.update(eval_dict)
 
         # return some intermediate variables for reusing
         out_dict = {
-            "pred_trans": pred_trans,  # [B, P, 3]
-            "pred_rot": pred_rot,  # [B, P, 4]
-            "gt_trans_pts": gt_trans_pts,  # [B, P, N, 3]
-            "pred_trans_pts": pred_trans_pts,  # [B, P, N, 3]
+            'pred_trans': pred_trans,  # [B, P, 3]
+            'pred_rot': pred_rot,  # [B, P, 4]
+            'gt_trans_pts': gt_trans_pts,  # [B, P, N, 3]
+            'pred_trans_pts': pred_trans_pts,  # [B, P, N, 3]
         }
 
         return loss_dict, out_dict
@@ -352,35 +318,26 @@ class BaseModel(pl.LightningModule):
         """Calculate evaluation metrics at testing time."""
         # GTs should be output of `self.match` methods
         metric_dict = {}
-        part_pcs, valids = data_dict["part_pcs"], data_dict["part_valids"]
-        pred_trans, pred_rot = out_dict["trans"], out_dict["rot"]
+        part_pcs, valids = data_dict['part_pcs'], data_dict['part_valids']
+        pred_trans, pred_rot = out_dict['trans'], out_dict['rot']
         # part_acc in DGL paper
-        metric_dict["part_acc"] = calc_part_acc(
-            part_pcs, pred_trans, gt_trans, pred_rot, gt_rot, valids
-        )
+        metric_dict['part_acc'] = calc_part_acc(part_pcs, pred_trans, gt_trans,
+                                                pred_rot, gt_rot, valids)
         # semantic assembly
         # connectivity_acc in DGL paper
-        if self.semantic and "contact_points" in data_dict.keys():
-            metric_dict["connectivity_acc"] = calc_connectivity_acc(
-                pred_trans, pred_rot, data_dict["contact_points"]
-            )
+        if self.semantic and 'contact_points' in data_dict.keys():
+            metric_dict['connectivity_acc'] = calc_connectivity_acc(
+                pred_trans, pred_rot, data_dict['contact_points'])
         # geometric assembly
         # mse/rmse/mae of translation and rotation in NSM
         if not self.semantic:
-            for metric in [
-                "mse",
-                "rmse",
-                "mae",
-            ]:
-                metric_dict[f"trans_{metric}"] = trans_metrics(
-                    pred_trans, gt_trans, valids, metric=metric
-                )
-                metric_dict[f"rot_{metric}"] = rot_metrics(
-                    pred_rot, gt_rot, valids, metric=metric
-                )
-            metric_dict["rot_geodesic"] = rot_metrics(
-                pred_rot, gt_rot, valids, metric="geodesic"
-            )
+            for metric in ['mse', 'rmse', 'mae',]:
+                metric_dict[f'trans_{metric}'] = trans_metrics(
+                    pred_trans, gt_trans, valids, metric=metric)
+                metric_dict[f'rot_{metric}'] = rot_metrics(
+                    pred_rot, gt_rot, valids, metric=metric)
+            metric_dict['rot_geodesic'] = rot_metrics(
+                pred_rot, gt_rot, valids, metric='geodesic')
         return metric_dict
 
     def _loss_function(self, data_dict, out_dict={}, optimizer_idx=-1):
@@ -388,8 +345,9 @@ class BaseModel(pl.LightningModule):
 
         A wrapper for `_calc_loss`, we can do some pre/post-processing here.
         """
+        pass
 
-    def loss_function(self, data_dict, optimizer_idx, mode="train"):
+    def loss_function(self, data_dict, optimizer_idx, mode = 'train'):
         """Wrapper for computing MoN loss.
 
         We sample predictions for multiple times and return the min one.
@@ -398,8 +356,7 @@ class BaseModel(pl.LightningModule):
         out_dict = {}
         for _ in range(self.sample_iter):
             sample_loss, out_dict = self._loss_function(
-                data_dict, out_dict, optimizer_idx=optimizer_idx, mode=mode
-            )
+                data_dict, out_dict, optimizer_idx=optimizer_idx, mode = mode)
 
             if loss_dict is None:
                 loss_dict = {k: [] for k in sample_loss.keys()}
@@ -407,28 +364,27 @@ class BaseModel(pl.LightningModule):
                 loss_dict[k].append(v)
 
         # take the min for each data in the batch
-        total_loss = 0.0
+        total_loss = 0.
         loss_dict = {k: torch.stack(v, dim=0) for k, v in loss_dict.items()}
         for k, v in loss_dict.items():
             # we may log some other metrics in eval, e.g. acc
             # exclude them from loss computation
-            if k.endswith("_loss"):
-                total_loss += v * eval(
-                    f"self.cfg.loss.{k}_w"
-                )  # weightingloss_function
-        loss_dict["loss"] = total_loss
+            if k.endswith('_loss'):
+                total_loss += v * eval(f'self.cfg.loss.{k}_w')  # weightingloss_function
+        loss_dict['loss'] = total_loss
 
         # `total_loss` is of shape [sample_iter, B]
         min_idx = total_loss.argmin(0)  # [B]
         B = min_idx.shape[0]
         batch_idx = torch.arange(B).type_as(min_idx)
         loss_dict = {
-            k: v[min_idx, batch_idx].mean() for k, v in loss_dict.items()
+            k: v[min_idx, batch_idx].mean()
+            for k, v in loss_dict.items()
         }
 
         # log the batch_size for avg_loss computation
         if not self.training:
-            loss_dict["batch_size"] = B
+            loss_dict['batch_size'] = B
 
         return loss_dict
 
@@ -437,24 +393,21 @@ class BaseModel(pl.LightningModule):
         lr = self.cfg.optimizer.lr
         wd = self.cfg.optimizer.weight_decay
 
-        if wd > 0.0:
+        if wd > 0.:
             params_dict = filter_wd_parameters(self)
-            params_list = [
-                {
-                    "params": params_dict["no_decay"],
-                    "weight_decay": 0.0,
-                },
-                {
-                    "params": params_dict["decay"],
-                    "weight_decay": wd,
-                },
-            ]
+            params_list = [{
+                'params': params_dict['no_decay'],
+                'weight_decay': 0.,
+            }, {
+                'params': params_dict['decay'],
+                'weight_decay': wd,
+            }]
             optimizer = optim.AdamW(params_list, lr=lr)
         else:
-            optimizer = optim.Adam(self.parameters(), lr=lr, weight_decay=0.0)
+            optimizer = optim.Adam(self.parameters(), lr=lr, weight_decay=0.)
 
         if self.cfg.optimizer.lr_scheduler:
-            assert self.cfg.optimizer.lr_scheduler in ["cosine"]
+            assert self.cfg.optimizer.lr_scheduler in ['cosine']
             total_epochs = self.cfg.exp.num_epochs
             warmup_epochs = int(total_epochs * self.cfg.optimizer.warmup_ratio)
             scheduler = CosineAnnealingWarmupRestarts(
@@ -466,29 +419,26 @@ class BaseModel(pl.LightningModule):
             )
             return (
                 [optimizer],
-                [
-                    {
-                        "scheduler": scheduler,
-                        "interval": "epoch",
-                    }
-                ],
+                [{
+                    'scheduler': scheduler,
+                    'interval': 'epoch',
+                }],
             )
         return optimizer
 
     @torch.no_grad()
     def sample_assembly(self, data_dict):
         """Sample assembly for visualization."""
-        if "part_rot" not in data_dict:
-            part_quat = data_dict.pop("part_quat")
-            data_dict["part_rot"] = Rotation3D(
-                part_quat, rot_type="quat"
-            ).convert(self.rot_type)
-        part_pcs, valids = data_dict["part_pcs"], data_dict["part_valids"]
-        gt_trans, gt_rot = data_dict["part_trans"], data_dict["part_rot"]
+        if 'part_rot' not in data_dict:
+            part_quat = data_dict.pop('part_quat')
+            data_dict['part_rot'] = \
+                Rotation3D(part_quat, rot_type='quat').convert(self.rot_type)
+        part_pcs, valids = data_dict['part_pcs'], data_dict['part_valids']
+        gt_trans, gt_rot = data_dict['part_trans'], data_dict['part_rot']
         sample_pred_pcs = []
         for _ in range(self.sample_iter):
             out_dict = self.forward(data_dict)
-            pred_trans, pred_rot = out_dict["trans"], out_dict["rot"]
+            pred_trans, pred_rot = out_dict['trans'], out_dict['rot']
             pred_pcs = transform_pc(pred_trans, pred_rot, part_pcs)
             sample_pred_pcs.append(pred_pcs)
         gt_pcs = transform_pc(gt_trans, gt_rot, part_pcs)  # [B, P, N, 3]

@@ -1,15 +1,14 @@
 """Code borrowed from https://github.com/hyperplane-lab/Generative-3D-Part-Assembly/blob/main/exps/Our_Method-dynamic_graph_learning/models/model_dynamic.py"""
 
 import numpy as np
-import torch
-from multi_part_assembly.models import (
-    BaseModel,
-    StocasticPoseRegressor,
-    build_encoder,
-)
-from multi_part_assembly.utils import _get_clones
 
-from .modules import MLP3, MLP4, PoseEncoder, RelationNet
+import torch
+
+from multi_part_assembly.utils import _get_clones
+from multi_part_assembly.models import BaseModel
+from multi_part_assembly.models import build_encoder, StocasticPoseRegressor
+
+from .modules import MLP3, MLP4, RelationNet, PoseEncoder
 
 
 class DGLModel(BaseModel):
@@ -76,10 +75,10 @@ class DGLModel(BaseModel):
 
     def _gather_same_class(self, data_dict):
         """Construct same_class_list for GNN node aggregation/separation."""
-        class_list = data_dict.get("class_list", None)  # pre-computed
+        class_list = data_dict.get('class_list', None)  # pre-computed
         if self.merge_node and self.semantic and class_list is None:
-            part_valids = data_dict["part_valids"]
-            part_ids = data_dict["part_ids"]
+            part_valids = data_dict['part_valids']
+            part_ids = data_dict['part_ids']
             B = part_valids.shape[0]
             class_list = [[] for _ in range(B)]
             for i in range(B):
@@ -91,7 +90,7 @@ class DGLModel(BaseModel):
     def _extract_part_feats(self, part_pcs, part_valids):
         """Extract per-part point cloud features."""
         B, P, N, _ = part_pcs.shape  # [B, P, N, 3]
-        valid_mask = part_valids == 1
+        valid_mask = (part_valids == 1)
         # shared-weight encoder
         valid_pcs = part_pcs[valid_mask]  # [n, N, 3]
         valid_feats = self.encoder(valid_pcs)  # [n, C]
@@ -108,12 +107,10 @@ class DGLModel(BaseModel):
             for cls_lst in class_list[i]:
                 if len(cls_lst) <= 1:
                     continue
-                pose_feats_copy[i, cls_lst] = pose_feats[i, cls_lst].max(
-                    dim=-2, keepdim=True
-                )[0]
-                part_feats_copy[i, cls_lst] = part_feats[i, cls_lst].max(
-                    dim=-2, keepdim=True
-                )[0]
+                pose_feats_copy[i, cls_lst] = pose_feats[i, cls_lst].\
+                    max(dim=-2, keepdim=True)[0]
+                part_feats_copy[i, cls_lst] = \
+                    part_feats[i, cls_lst].max(dim=-2, keepdim=True)[0]
         # the official implementation performs stop gradient
         # see https://github.com/hyperplane-lab/Generative-3D-Part-Assembly/blob/main/exps/Our_Method-dynamic_graph_learning/models/model_dynamic.py#L236
         # we discover that detach sometimes cause unstable training
@@ -129,12 +126,10 @@ class DGLModel(BaseModel):
         input_relation = torch.cat([pose_feat1, pose_feat2], dim=-1)
         if self.merge_node and iter_ind % 2 == 1:
             new_relation = self.relation_predictor(
-                input_relation.view(B, P * P, -1)
-            ).view(B, P, P)
+                input_relation.view(B, P * P, -1)).view(B, P, P)
         else:
             new_relation = self.relation_predictor_dense(
-                input_relation.view(B, P * P, -1)
-            ).view(B, P, P)
+                input_relation.view(B, P * P, -1)).view(B, P, P)
         return new_relation
 
     def _message_passing(self, part_feats, relation_matrix, iter_ind):
@@ -144,9 +139,8 @@ class DGLModel(BaseModel):
         part_feat1 = part_feats.unsqueeze(2).repeat(1, 1, P, 1)
         part_feat2 = part_feats.unsqueeze(1).repeat(1, P, 1, 1)
         pairwise_feats = torch.cat([part_feat1, part_feat2], dim=-1)
-        part_relation = self.edge_mlps[iter_ind](
-            pairwise_feats.view(B * P, P, -1)
-        )
+        part_relation = \
+            self.edge_mlps[iter_ind](pairwise_feats.view(B * P, P, -1))
         part_relation = part_relation.view(B, P, P, -1)
 
         # compute message as weighted sum over edge features
@@ -173,18 +167,18 @@ class DGLModel(BaseModel):
                 - part_feats: [B, P, C'] (reused) or None
                 - class_list: batch of list of list (reused) or None
         """
-        part_feats = data_dict.get("part_feats", None)
+        part_feats = data_dict.get('part_feats', None)
 
         if part_feats is None:
-            part_pcs = data_dict["part_pcs"]
-            part_valids = data_dict["part_valids"]
+            part_pcs = data_dict['part_pcs']
+            part_valids = data_dict['part_valids']
             part_feats = self._extract_part_feats(part_pcs, part_valids)
         local_feats = part_feats
 
         # initialize a fully connected graph
-        valid_matrix = data_dict["valid_matrix"]  # 1 indicates valid relation
-        part_label = data_dict["part_label"].type_as(part_feats)
-        instance_label = data_dict["instance_label"].type_as(part_feats)
+        valid_matrix = data_dict['valid_matrix']  # 1 indicates valid relation
+        part_label = data_dict['part_label'].type_as(part_feats)
+        instance_label = data_dict['instance_label'].type_as(part_feats)
         B, P = instance_label.shape[:2]
         # init pose as identity
         pred_pose = self.zero_pose.repeat(B, P, 1).type_as(part_feats).detach()
@@ -200,8 +194,7 @@ class DGLModel(BaseModel):
                 # merge features of parts in the same class
                 if self.merge_node and self.semantic and iter_ind % 2 == 1:
                     part_feats_copy, pose_feats_copy = self._merge_nodes(
-                        part_feats, pose_feats, class_list
-                    )
+                        part_feats, pose_feats, class_list)
                 else:
                     part_feats_copy = part_feats
                     pose_feats_copy = pose_feats
@@ -215,20 +208,17 @@ class DGLModel(BaseModel):
                 relation_matrix = valid_matrix
 
             # perform message passing
-            messages = self._message_passing(
-                part_feats_copy, relation_matrix, iter_ind
-            )  # B x P x F
+            messages = self._message_passing(part_feats_copy, relation_matrix,
+                                             iter_ind)  # B x P x F
 
             # GNN node aggregation
-            node_feats = torch.cat(
-                [messages.type_as(part_feats), part_feats], dim=-1
-            )
+            node_feats = torch.cat([messages.type_as(part_feats), part_feats],
+                                   dim=-1)
             part_feats = self.node_mlps[iter_ind](node_feats)  # B x P x F
 
             # pose prediction
             pose_feats = torch.cat(
-                [part_feats, part_label, instance_label, pred_pose], dim=-1
-            )
+                [part_feats, part_label, instance_label, pred_pose], dim=-1)
             pred_rot, pred_trans = self.pose_predictors[iter_ind](pose_feats)
             pred_pose = torch.cat([pred_rot, pred_trans], dim=-1)
 
@@ -245,16 +235,14 @@ class DGLModel(BaseModel):
             pred_trans = all_pred_trans[-1]
 
         pred_dict = {
-            "rot": pred_rot,  # [(T, )B, P, 4/(3, 3)], Rotation3D
-            "trans": pred_trans,  # [(T, )B, P, 3]
-            "part_feats": local_feats,  # [B, P, C]
-            "class_list": class_list,  # batch of list of list
+            'rot': pred_rot,  # [(T, )B, P, 4/(3, 3)], Rotation3D
+            'trans': pred_trans,  # [(T, )B, P, 3]
+            'part_feats': local_feats,  # [B, P, C]
+            'class_list': class_list,  # batch of list of list
         }
         return pred_dict
 
-    def _loss_function(
-        self, data_dict, out_dict={}, optimizer_idx=-1, mode="train"
-    ):
+    def _loss_function(self, data_dict, out_dict={}, optimizer_idx=-1, mode= 'train'):
         """Predict poses and calculate loss.
 
         Since there could be several parts that are the same in one shape, we
@@ -270,40 +258,40 @@ class DGLModel(BaseModel):
             several times and select the min one as final loss.
             Also returns computed features before pose regressing for reusing.
         """
-        part_pcs, valids = data_dict["part_pcs"], data_dict["part_valids"]
+        part_pcs, valids = data_dict['part_pcs'], data_dict['part_valids']
         forward_dict = {
-            "part_pcs": part_pcs,
-            "part_valids": valids,
-            "part_label": data_dict["part_label"],
-            "instance_label": data_dict["instance_label"],
-            "part_ids": data_dict["part_ids"],
-            "valid_matrix": data_dict["valid_matrix"],
-            "part_feats": out_dict.get("part_feats", None),
-            "class_list": out_dict.get("class_list", None),
+            'part_pcs': part_pcs,
+            'part_valids': valids,
+            'part_label': data_dict['part_label'],
+            'instance_label': data_dict['instance_label'],
+            'part_ids': data_dict['part_ids'],
+            'valid_matrix': data_dict['valid_matrix'],
+            'part_feats': out_dict.get('part_feats', None),
+            'class_list': out_dict.get('class_list', None),
         }
 
         # prediction
         out_dict = self.forward(forward_dict)
-        part_feats, class_list = out_dict["part_feats"], out_dict["class_list"]
+        part_feats, class_list = out_dict['part_feats'], out_dict['class_list']
 
         # loss computation
         if not self.training:
             loss_dict, out_dict = self._calc_loss(out_dict, data_dict)
-            out_dict["part_feats"] = part_feats
-            out_dict["class_list"] = class_list
+            out_dict['part_feats'] = part_feats
+            out_dict['class_list'] = class_list
             return loss_dict, out_dict
 
-        pred_trans, pred_rot = out_dict["trans"], out_dict["rot"]
+        pred_trans, pred_rot = out_dict['trans'], out_dict['rot']
         all_loss_dict = None
         for i in range(self.iter):
-            pred_dict = {"rot": pred_rot[i], "trans": pred_trans[i]}
+            pred_dict = {'rot': pred_rot[i], 'trans': pred_trans[i]}
             loss_dict, out_dict = self._calc_loss(pred_dict, data_dict)
             if all_loss_dict is None:
-                all_loss_dict = {k: 0.0 for k in loss_dict.keys()}
+                all_loss_dict = {k: 0. for k in loss_dict.keys()}
             for k, v in loss_dict.items():
                 all_loss_dict[k] = all_loss_dict[k] + v
-                all_loss_dict[f"{k}_{i}"] = v
-        out_dict["part_feats"] = part_feats
-        out_dict["class_list"] = class_list
+                all_loss_dict[f'{k}_{i}'] = v
+        out_dict['part_feats'] = part_feats
+        out_dict['class_list'] = class_list
 
         return all_loss_dict, out_dict

@@ -1,14 +1,13 @@
 import os
-
-from multi_part_assembly.utils import merge_cfg
 from yacs.config import CfgNode as CN
+from multi_part_assembly.utils import merge_cfg
 
 _base_ = {
-    "exp": "../_base_/default_exp.py",
-    "data": "../_base_/datasets/breaking_bad/everyday.py",
-    "optimizer": "../_base_/schedules/adam_cosine.py",
-    "model": "../_base_/models/global.py",
-    "loss": "../_base_/models/loss/geometric_loss.py",
+    'exp': '../_base_/default_exp.py',
+    'data': '../_base_/datasets/breaking_bad/everyday.py',
+    'optimizer': '../_base_/schedules/adam_cosine.py',
+    'model': '../_base_/models/global.py',
+    'loss': '../_base_/models/loss/geometric_loss.py',
 }
 
 # Miscellaneous configs

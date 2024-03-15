@@ -50,8 +50,7 @@ class _PointnetSAModuleBase(nn.Module):
         xyz_flipped = xyz.transpose(1, 2).contiguous()
         new_xyz = (
             pointnet2_utils.gather_operation(
-                xyz_flipped,
-                pointnet2_utils.furthest_point_sample(xyz, self.npoint),
+                xyz_flipped, pointnet2_utils.furthest_point_sample(xyz, self.npoint)
             )
             .transpose(1, 2)
             .contiguous()
@@ -64,9 +63,7 @@ class _PointnetSAModuleBase(nn.Module):
                 xyz, new_xyz, features
             )  # (B, C, npoint, nsample)
 
-            new_features = self.mlps[i](
-                new_features
-            )  # (B, mlp[-1], npoint, nsample)
+            new_features = self.mlps[i](new_features)  # (B, mlp[-1], npoint, nsample)
             new_features = F.max_pool2d(
                 new_features, kernel_size=[1, new_features.size(3)]
             )  # (B, mlp[-1], npoint, 1)

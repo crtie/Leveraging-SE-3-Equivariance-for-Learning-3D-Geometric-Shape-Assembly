@@ -2,8 +2,9 @@
 
 import torch
 import torch.nn as nn
-from multi_part_assembly.models import DGLModel, RNNWrapper
+
 from multi_part_assembly.utils import _get_clones
+from multi_part_assembly.models import DGLModel, RNNWrapper
 
 from .modules import MLP4
 
@@ -82,18 +83,18 @@ class RGLNet(DGLModel):
                 - part_feats: [B, P, C'] (reused) or None
                 - class_list: batch of list of list (reused) or None
         """
-        part_feats = data_dict.get("part_feats", None)
+        part_feats = data_dict.get('part_feats', None)
 
         if part_feats is None:
-            part_pcs = data_dict["part_pcs"]
-            part_valids = data_dict["part_valids"]
+            part_pcs = data_dict['part_pcs']
+            part_valids = data_dict['part_valids']
             part_feats = self._extract_part_feats(part_pcs, part_valids)
         local_feats = part_feats
 
         # initialize a fully connected graph
-        valid_matrix = data_dict["valid_matrix"]  # 1 indicates valid relation
-        part_label = data_dict["part_label"].type_as(part_feats)
-        instance_label = data_dict["instance_label"].type_as(part_feats)
+        valid_matrix = data_dict['valid_matrix']  # 1 indicates valid relation
+        part_label = data_dict['part_label'].type_as(part_feats)
+        instance_label = data_dict['instance_label'].type_as(part_feats)
         B, P = instance_label.shape[:2]
         # init pose as identity
         pred_pose = self.zero_pose.repeat(B, P, 1).type_as(part_feats).detach()
@@ -109,8 +110,7 @@ class RGLNet(DGLModel):
                 # merge features of parts in the same class
                 if self.merge_node and self.semantic and iter_ind % 2 == 1:
                     part_feats_copy, pose_feats_copy = self._merge_nodes(
-                        part_feats, pose_feats, class_list
-                    )
+                        part_feats, pose_feats, class_list)
                 else:
                     part_feats_copy = part_feats
                     pose_feats_copy = pose_feats
@@ -124,22 +124,20 @@ class RGLNet(DGLModel):
                 relation_matrix = valid_matrix
 
             # perform message passing
-            messages = self._message_passing(
-                part_feats_copy, relation_matrix, iter_ind
-            )
+            messages = self._message_passing(part_feats_copy, relation_matrix,
+                                             iter_ind)
 
             # GRU progressive message passing
-            gru_outputs = self._run_gru(
-                part_feats, messages, data_dict["part_valids"], iter_ind
-            )  # B x P x 4F
+            gru_outputs = self._run_gru(part_feats, messages,
+                                        data_dict['part_valids'],
+                                        iter_ind)  # B x P x 4F
 
             # node feature update
             part_feats = self.node_mlps[iter_ind](gru_outputs)  # B x P x F
 
             # pose prediction
             pose_feats = torch.cat(
-                [part_feats, part_label, instance_label, pred_pose], dim=-1
-            )
+                [part_feats, part_label, instance_label, pred_pose], dim=-1)
             pred_rot, pred_trans = self.pose_predictors[iter_ind](pose_feats)
             pred_pose = torch.cat([pred_rot, pred_trans], dim=-1)
 
@@ -156,9 +154,9 @@ class RGLNet(DGLModel):
             pred_trans = all_pred_trans[-1]
 
         pred_dict = {
-            "rot": pred_rot,  # [(T, )B, P, 4/(3, 3)], Rotation3D
-            "trans": pred_trans,  # [(T, )B, P, 3]
-            "part_feats": local_feats,  # [B, P, C]
-            "class_list": class_list,  # batch of list of list
+            'rot': pred_rot,  # [(T, )B, P, 4/(3, 3)], Rotation3D
+            'trans': pred_trans,  # [(T, )B, P, 3]
+            'part_feats': local_feats,  # [B, P, C]
+            'class_list': class_list,  # batch of list of list
         }
         return pred_dict
