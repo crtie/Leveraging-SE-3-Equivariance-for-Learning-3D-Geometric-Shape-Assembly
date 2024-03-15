@@ -4,6 +4,7 @@ from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 
 class RNNWrapper(nn.Module):
+
     def __init__(self, rnn, batch_first=True):
         super().__init__()
 

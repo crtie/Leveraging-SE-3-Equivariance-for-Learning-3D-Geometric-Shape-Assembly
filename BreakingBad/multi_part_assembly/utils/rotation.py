@@ -1,6 +1,11 @@
 import numpy as np
+
 import torch
 import torch.nn.functional as F
+
+from pytorch3d.transforms import matrix_to_quaternion, matrix_to_axis_angle, \
+    quaternion_to_matrix, quaternion_to_axis_angle, \
+    axis_angle_to_quaternion, axis_angle_to_matrix
 from pytorch3d.transforms import quaternion_multiply
 from pytorch3d.transforms import rotation_6d_to_matrix as rot6d_to_matrix
 
@@ -13,7 +18,7 @@ def _is_normalized(mat, dim=-1):
     Check if one dim of a matrix is normalized.
     """
     norm = torch.norm(mat, p=2, dim=dim)
-    return (norm - 1.0).abs().max() < EPS
+    return (norm - 1.).abs().max() < EPS
 
 
 @torch.no_grad()
@@ -44,48 +49,42 @@ def qeuler(q, order, epsilon=0, to_degree=False):
     q2 = q[:, 2]
     q3 = q[:, 3]
 
-    if order == "xyz":
+    if order == 'xyz':
         x = torch.atan2(2 * (q0 * q1 - q2 * q3), 1 - 2 * (q1 * q1 + q2 * q2))
         y = torch.asin(
-            torch.clamp(2 * (q1 * q3 + q0 * q2), -1 + epsilon, 1 - epsilon)
-        )
+            torch.clamp(2 * (q1 * q3 + q0 * q2), -1 + epsilon, 1 - epsilon))
         z = torch.atan2(2 * (q0 * q3 - q1 * q2), 1 - 2 * (q2 * q2 + q3 * q3))
-    elif order == "yzx":
+    elif order == 'yzx':
         x = torch.atan2(2 * (q0 * q1 - q2 * q3), 1 - 2 * (q1 * q1 + q3 * q3))
         y = torch.atan2(2 * (q0 * q2 - q1 * q3), 1 - 2 * (q2 * q2 + q3 * q3))
         z = torch.asin(
-            torch.clamp(2 * (q1 * q2 + q0 * q3), -1 + epsilon, 1 - epsilon)
-        )
-    elif order == "zxy":
+            torch.clamp(2 * (q1 * q2 + q0 * q3), -1 + epsilon, 1 - epsilon))
+    elif order == 'zxy':
         x = torch.asin(
-            torch.clamp(2 * (q0 * q1 + q2 * q3), -1 + epsilon, 1 - epsilon)
-        )
+            torch.clamp(2 * (q0 * q1 + q2 * q3), -1 + epsilon, 1 - epsilon))
         y = torch.atan2(2 * (q0 * q2 - q1 * q3), 1 - 2 * (q1 * q1 + q2 * q2))
         z = torch.atan2(2 * (q0 * q3 - q1 * q2), 1 - 2 * (q1 * q1 + q3 * q3))
-    elif order == "xzy":
+    elif order == 'xzy':
         x = torch.atan2(2 * (q0 * q1 + q2 * q3), 1 - 2 * (q1 * q1 + q3 * q3))
         y = torch.atan2(2 * (q0 * q2 + q1 * q3), 1 - 2 * (q2 * q2 + q3 * q3))
         z = torch.asin(
-            torch.clamp(2 * (q0 * q3 - q1 * q2), -1 + epsilon, 1 - epsilon)
-        )
-    elif order == "yxz":
+            torch.clamp(2 * (q0 * q3 - q1 * q2), -1 + epsilon, 1 - epsilon))
+    elif order == 'yxz':
         x = torch.asin(
-            torch.clamp(2 * (q0 * q1 - q2 * q3), -1 + epsilon, 1 - epsilon)
-        )
+            torch.clamp(2 * (q0 * q1 - q2 * q3), -1 + epsilon, 1 - epsilon))
         y = torch.atan2(2 * (q1 * q3 + q0 * q2), 1 - 2 * (q1 * q1 + q2 * q2))
         z = torch.atan2(2 * (q1 * q2 + q0 * q3), 1 - 2 * (q1 * q1 + q3 * q3))
-    elif order == "zyx":
+    elif order == 'zyx':
         x = torch.atan2(2 * (q0 * q1 + q2 * q3), 1 - 2 * (q1 * q1 + q2 * q2))
         y = torch.asin(
-            torch.clamp(2 * (q0 * q2 - q1 * q3), -1 + epsilon, 1 - epsilon)
-        )
+            torch.clamp(2 * (q0 * q2 - q1 * q3), -1 + epsilon, 1 - epsilon))
         z = torch.atan2(2 * (q0 * q3 + q1 * q2), 1 - 2 * (q2 * q2 + q3 * q3))
     else:
         raise
 
     euler = torch.stack((x, y, z), dim=1).view(original_shape)
     if to_degree:
-        euler = euler * 180.0 / np.pi
+        euler = euler * 180. / np.pi
     return euler
 
 
@@ -106,14 +105,14 @@ class Rotation3D:
         convert from supported representations to euler angles
     """
 
-    ROT_TYPE = ["quat", "rmat", "axis"]
+    ROT_TYPE = ['quat', 'rmat', 'axis']
     ROT_NAME = {
-        "quat": "quaternion",
-        "rmat": "matrix",
-        "axis": "axis_angle",
+        'quat': 'quaternion',
+        'rmat': 'matrix',
+        'axis': 'axis_angle',
     }
 
-    def __init__(self, rot, rot_type="quat"):
+    def __init__(self, rot, rot_type='quat'):
         self._rot = rot
         self._rot_type = rot_type
 
@@ -124,7 +123,7 @@ class Rotation3D:
         with torch.no_grad():
             norms = torch.norm(self._rot, p=2, dim=-1, keepdim=True)
             new_rot = torch.zeros_like(self._rot)
-            new_rot[..., 0] = 1.0  # zero quat
+            new_rot[..., 0] = 1.  # zero quat
             valid_mask = (norms.abs() > 0.5).repeat_interleave(4, dim=-1)
         self._rot = torch.where(valid_mask, self._rot, new_rot)
 
@@ -134,24 +133,23 @@ class Rotation3D:
 
     def _check_valid(self):
         """Check the shape of rotation."""
-        assert (
-            self._rot_type in self.ROT_TYPE
-        ), f"rotation {self._rot_type} is not supported"
+        assert self._rot_type in self.ROT_TYPE, \
+            f'rotation {self._rot_type} is not supported'
         # if isinstance(self._rot, map):
         #     return
-        assert isinstance(self._rot, torch.Tensor), "rotation must be a tensor"
+        assert isinstance(self._rot, torch.Tensor), 'rotation must be a tensor'
         # let's always make rotation in float32
         # otherwise quat won't be unit, and rmat won't be orthogonal
         self._rot = self._rot.float()
-        if self._rot_type == "quat":
-            assert self._rot.shape[-1] == 4, "wrong quaternion shape"
+        if self._rot_type == 'quat':
+            assert self._rot.shape[-1] == 4, 'wrong quaternion shape'
             # quat with norm == 0 are padded, make them (1, 0, 0, 0)
             # because (0, 0, 0, 0) convert to rmat will cause PyTorch bugs
             self._process_zero_quat()
             # too expensive to check
             # self._normalize_quat()
             # assert _is_normalized(self._rot, dim=-1), 'quaternion is not unit'
-        elif self._rot_type == "rmat":
+        elif self._rot_type == 'rmat':
             if self._rot.shape[-1] == 3:
                 if self._rot.shape[-2] == 3:  # 3x3 matrix
                     # assert _is_orthogonal(self._rot)
@@ -161,20 +159,20 @@ class Rotation3D:
                     # and stack them vertically
                     self._rot = rot6d_to_matrix(self._rot.flatten(-2, -1))
                 else:
-                    raise ValueError("wrong rotation matrix shape")
+                    raise ValueError('wrong rotation matrix shape')
             elif self._rot.shape[-1] == 6:  # 6D representation
                 # this indeed doing `rmat = torch.stack((b1, b2, b3), dim=-2)`
                 self._rot = rot6d_to_matrix(self._rot)
             else:
-                raise NotImplementedError("wrong rotation matrix shape")
+                raise NotImplementedError('wrong rotation matrix shape')
         else:  # axis-angle
             assert self._rot.shape[-1] == 3
 
     def apply_rotation(self, rot):
         """Apply `rot` to the current rotation, left multiply."""
-        assert rot.rot_type in ["quat", "rmat"]
+        assert rot.rot_type in ['quat', 'rmat']
         rot = rot.convert(self._rot_type)
-        if self._rot_type == "quat":
+        if self._rot_type == 'quat':
             new_rot = quaternion_multiply(rot.rot, self._rot)
         else:
             new_rot = rot.rot @ self._rot
@@ -182,29 +180,29 @@ class Rotation3D:
 
     def convert(self, rot_type):
         """Convert to a different rotation type."""
-        assert rot_type in self.ROT_TYPE, f"unknown target rotation {rot_type}"
+        assert rot_type in self.ROT_TYPE, f'unknown target rotation {rot_type}'
         src_type = self.ROT_NAME[self._rot_type]
         dst_type = self.ROT_NAME[rot_type]
         if src_type == dst_type:
             return self.clone()
-        new_rot = eval(f"{src_type}_to_{dst_type}")(self._rot)
+        new_rot = eval(f'{src_type}_to_{dst_type}')(self._rot)
         return self.__class__(new_rot, rot_type)
 
     def to_quat(self):
         """Convert to quaternion and return the tensor."""
-        return self.convert("quat").rot
+        return self.convert('quat').rot
 
     def to_rmat(self):
         """Convert to rotation matrix and return the tensor."""
-        return self.convert("rmat").rot
+        return self.convert('rmat').rot
 
     def to_axis_angle(self):
         """Convert to axis angle and return the tensor."""
-        return self.convert("axis").rot
+        return self.convert('axis').rot
 
-    def to_euler(self, order="zyx", to_degree=True):
+    def to_euler(self, order='zyx', to_degree=True):
         """Compute to euler angles and return the tensor."""
-        quat = self.convert("quat")
+        quat = self.convert('quat')
         return qeuler(quat._rot, order=order, to_degree=to_degree)
 
     @property
@@ -223,8 +221,7 @@ class Rotation3D:
     @rot_type.setter
     def rot_type(self, rot_type):
         raise NotImplementedError(
-            "please use convert() for rotation type conversion"
-        )
+            'please use convert() for rotation type conversion')
 
     @property
     def shape(self):
@@ -244,23 +241,19 @@ class Rotation3D:
 
     def flatten(self, *args, **kwargs):
         return self.__class__(
-            self._rot.flatten(*args, **kwargs), self._rot_type
-        )
+            self._rot.flatten(*args, **kwargs), self._rot_type)
 
     def unflatten(self, *args, **kwargs):
         return self.__class__(
-            self._rot.unflatten(*args, **kwargs), self._rot_type
-        )
+            self._rot.unflatten(*args, **kwargs), self._rot_type)
 
     def transpose(self, *args, **kwargs):
         return self.__class__(
-            self._rot.transpose(*args, **kwargs), self._rot_type
-        )
+            self._rot.transpose(*args, **kwargs), self._rot_type)
 
     def permute(self, *args, **kwargs):
         return self.__class__(
-            self._rot.permute(*args, **kwargs), self._rot_type
-        )
+            self._rot.permute(*args, **kwargs), self._rot_type)
 
     def contiguous(self):
         return self.__class__(self._rot.contiguous(), self._rot_type)

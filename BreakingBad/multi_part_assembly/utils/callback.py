@@ -1,6 +1,8 @@
 import numpy as np
-import torch
 import wandb
+
+import torch
+
 from pytorch_lightning import Callback
 
 
@@ -26,9 +28,8 @@ class PCAssemblyLogCallback(Callback):
             for j in range(len(pred_pcs[0])):
                 pred_pcs[i][j][:, 0] = pred_pcs[i][j][:, 0] - 1.5 * j
         log_dict = {
-            f"{split}_pc_{i}": wandb.Object3D(
-                np.concatenate([gt_pcs[i], *pred_pcs[i]], axis=0)
-            )
+            f'{split}_pc_{i}':
+            wandb.Object3D(np.concatenate([gt_pcs[i], *pred_pcs[i]], axis=0))
             for i in range(num)
         }
         trainer.logger.experiment.log(log_dict, commit=True)
@@ -39,7 +40,6 @@ class PCAssemblyLogCallback(Callback):
 
         if trainer.logger:
             pl_module.eval()
-            self._sample_assembly(
-                trainer, pl_module, self.train_loader, "train"
-            )
-            self._sample_assembly(trainer, pl_module, self.val_loader, "val")
+            self._sample_assembly(trainer, pl_module, self.train_loader,
+                                  'train')
+            self._sample_assembly(trainer, pl_module, self.val_loader, 'val')

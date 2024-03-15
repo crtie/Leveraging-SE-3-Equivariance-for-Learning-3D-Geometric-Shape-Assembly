@@ -3,6 +3,7 @@ import torch.nn as nn
 
 
 class MLP3(nn.Module):
+
     def __init__(self, feat_len):
         super().__init__()
 
@@ -30,6 +31,7 @@ class MLP3(nn.Module):
 
 
 class MLP4(nn.Module):
+
     def __init__(self, feat_len):
         super().__init__()
 
@@ -57,6 +59,7 @@ class MLP4(nn.Module):
 
 
 class RelationNet(nn.Module):
+
     def __init__(self):
         super().__init__()
         self.mlp1 = nn.Linear(128 + 128, 256)
@@ -71,6 +74,7 @@ class RelationNet(nn.Module):
 
 
 class PoseEncoder(nn.Module):
+
     def __init__(self, pose_dim):
         super().__init__()
         self.mlp1 = nn.Linear(pose_dim, 256)

@@ -1,20 +1,35 @@
-import copy
-
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
-from multi_part_assembly.models import BaseModel
-from multi_part_assembly.utils import (
-    Rotation3D,
-    _valid_mean,
-    chamfer_distance,
-    shape_cd_loss,
-    transform_pc,
-)
-from pointnet2_ops import pointnet2_utils
+import matplotlib.pyplot as plt
+import numpy as np
+import copy
+import pytorch_lightning as pl
 
-from .dgcnn import DGCNN_New
+from pytorch3d.transforms import quaternion_to_matrix
+from scipy.spatial.transform import Rotation as R
+from mpl_toolkits.mplot3d import Axes3D
+
+import os
+import sys
+from pdb import set_trace
+from multi_part_assembly.utils import (
+    _get_clones,
+    chamfer_distance,
+    _valid_mean,
+    rot_pc,
+    transform_pc,
+    Rotation3D,
+    shape_cd_loss,
+)
+from multi_part_assembly.models import BaseModel
+from multi_part_assembly.models import build_encoder, StocasticPoseRegressor
+from pointnet2_ops import pointnet2_utils
 from .modules import *
+from .dgcnn import DGCNN_New
 from .utils import *
+from pdb import set_trace
+from scipy.spatial.transform import Rotation as R
 
 
 class VNNModel(BaseModel):
@@ -45,13 +60,9 @@ class VNNModel(BaseModel):
 
     def init_pose_predictor(self):
         if self.cfg.model.regressor == "original":
-            pose_predictor = Ori_Regressor(
-                pc_feat_dim=self.cfg.model.pc_feat_dim
-            )
+            pose_predictor = Ori_Regressor(pc_feat_dim=self.cfg.model.pc_feat_dim)
         if self.cfg.model.regressor == "vnn":
-            pose_predictor = VN_Regressor(
-                pc_feat_dim=self.cfg.model.pc_feat_dim
-            )
+            pose_predictor = VN_Regressor(pc_feat_dim=self.cfg.model.pc_feat_dim)
         return pose_predictor
 
     def init_discriminator(self):
@@ -87,8 +98,8 @@ class VNNModel(BaseModel):
             equiv_feats_R = pred_data_R["equiv_feats"].reshape(B * P, -1, 3)
             self.check_equiv(equiv_feats, R, equiv_feats_R, "equiv_feats")
 
-            pred_data["rot"].reshape(B * P, 3, 3)
-            pred_data_R["rot"].reshape(B * P, 3, 3)
+            equiv_R = pred_data["rot"].reshape(B * P, 3, 3)
+            equiv_R_R = pred_data_R["rot"].reshape(B * P, 3, 3)
             # self.check_equiv(equiv_R, R, equiv_R_R, 'rotation')
 
             #! check invariance of invariant features
@@ -97,8 +108,8 @@ class VNNModel(BaseModel):
             inv_feats = inv_feats.reshape(B * P, c, c)
             inv_feats_R = pred_data_R["inv_feats"].reshape(B * P, c, c)
 
-            pred_data["trans"].reshape(B * P, 3)
-            pred_data_R["trans"].reshape(B * P, 3)
+            trans = pred_data["trans"].reshape(B * P, 3)
+            trans_R = pred_data_R["trans"].reshape(B * P, 3)
             # self.check_inv(trans, R, trans_R, 'translation')
             self.check_inv(inv_feats, R, inv_feats_R, "inv_feats")
         return
@@ -112,9 +123,9 @@ class VNNModel(BaseModel):
         valid_pcs = part_pcs[valid_mask]  # [n, 3, N]
         valid_feats_equiv, valid_feats_inv = self.encoder(valid_pcs)
 
-        equiv_pc_feats = torch.zeros(
-            B, P, self.cfg.model.pc_feat_dim * 2, 3
-        ).type_as(valid_feats_equiv)
+        equiv_pc_feats = torch.zeros(B, P, self.cfg.model.pc_feat_dim * 2, 3).type_as(
+            valid_feats_equiv
+        )
         equiv_pc_feats[valid_mask] = valid_feats_equiv
 
         inv_pc_feats = torch.zeros(
@@ -125,22 +136,20 @@ class VNNModel(BaseModel):
 
     def _extract_total_feats(self, batch_data):
         part_pcs = batch_data["part_pcs"]
-        batch_data["part_valids"]
+        part_valids = batch_data["part_valids"]
         B, P, _, N = part_pcs.shape  # [B, P, 3, N]
 
         # Ground truths
         rot_gt = batch_data["part_rot"].to_rmat()
         trans_gt = batch_data["part_trans"].float()
 
-        total_pt = transform_pc(
-            trans_gt, rot_gt, part_pcs, rot_type="rmat"
-        ).reshape(B, -1, 3)
+        total_pt = transform_pc(trans_gt, rot_gt, part_pcs, rot_type="rmat").reshape(
+            B, -1, 3
+        )
         idx = pointnet2_utils.furthest_point_sample(
             total_pt[:, :, :3].contiguous(), self.cfg.data.num_pc_points
         ).long()
-        idx = idx.view(*idx.shape, 1).repeat_interleave(
-            total_pt.shape[-1], dim=2
-        )
+        idx = idx.view(*idx.shape, 1).repeat_interleave(total_pt.shape[-1], dim=2)
         sampled_points = torch.gather(total_pt, dim=1, index=idx)
         total_equiv_feats, total_inv_feats = self.encoder(
             sampled_points.permute(0, 2, 1)
@@ -196,9 +205,7 @@ class VNNModel(BaseModel):
         if self.cfg.model.with_corr:
             GF = torch.bmm(
                 global_inv_feats.reshape(
-                    -1,
-                    self.cfg.model.pc_feat_dim * 2,
-                    self.cfg.model.pc_feat_dim * 2,
+                    -1, self.cfg.model.pc_feat_dim * 2, self.cfg.model.pc_feat_dim * 2
                 ),
                 equiv_feats.reshape(-1, self.cfg.model.pc_feat_dim * 2, 3),
             ).reshape(
@@ -245,13 +252,7 @@ class VNNModel(BaseModel):
             return loss_per_data
         elif self.cfg.model.pointloss == "cham":
             transform_pt_cd_loss, pred_pts, gt_pts = shape_cd_loss(
-                part_pcs,
-                trans_pred,
-                trans_gt,
-                rot_pred,
-                rot_gt,
-                valids,
-                ret_pts=True,
+                part_pcs, trans_pred, trans_gt, rot_pred, rot_gt, valids, ret_pts=True
             )
             return transform_pt_cd_loss, pred_pts, gt_pts
 
@@ -298,9 +299,7 @@ class VNNModel(BaseModel):
         part_cham_loss = torch.mean(dist1, dim=1) + torch.mean(dist2, dim=1)
         part_cham_loss = part_cham_loss.view(B, -1).type_as(recon_pcs)  # [B, P]
         part_cham_loss = _valid_mean(part_cham_loss, part_valids)
-        whole_cham_loss = torch.mean(dist3, dim=1) + torch.mean(
-            dist4, dim=1
-        )  # [B]
+        whole_cham_loss = torch.mean(dist3, dim=1) + torch.mean(dist4, dim=1)  # [B]
         cham_loss = part_cham_loss + whole_cham_loss
         return cham_loss
 
@@ -328,27 +327,19 @@ class VNNModel(BaseModel):
         idx1 = pointnet2_utils.furthest_point_sample(
             total_gt[:, :, :3].contiguous(), self.cfg.data.num_pc_points
         ).long()
-        idx1 = idx1.view(*idx1.shape, 1).repeat_interleave(
-            total_gt.shape[-1], dim=2
-        )
+        idx1 = idx1.view(*idx1.shape, 1).repeat_interleave(total_gt.shape[-1], dim=2)
         sampled_points_gt = torch.gather(total_gt, dim=1, index=idx1)
 
         total_pred = gt_pts.reshape(B, -1, 3)
         idx2 = pointnet2_utils.furthest_point_sample(
             total_pred[:, :, :3].contiguous(), self.cfg.data.num_pc_points
         ).long()
-        idx2 = idx2.view(*idx2.shape, 1).repeat_interleave(
-            total_pred.shape[-1], dim=2
-        )
+        idx2 = idx2.view(*idx2.shape, 1).repeat_interleave(total_pred.shape[-1], dim=2)
         sampled_points_pred = torch.gather(total_pred, dim=1, index=idx2)
-        pg_label = self.discriminator(
-            sampled_points_gt.permute(0, 2, 1)
-        ).squeeze(
+        pg_label = self.discriminator(sampled_points_gt.permute(0, 2, 1)).squeeze(
             1
         )  # (bs, 1)
-        pp_label = self.discriminator(
-            sampled_points_pred.permute(0, 2, 1)
-        ).squeeze(
+        pp_label = self.discriminator(sampled_points_pred.permute(0, 2, 1)).squeeze(
             1
         )  # (bs, 1)
 
@@ -357,9 +348,7 @@ class VNNModel(BaseModel):
         #! label is 0 for fake and 1 for real
 
         adv_loss_G = self.advLoss(pp_label, gg_label)
-        adv_loss_D = self.advLoss(pg_label, gg_label) + self.advLoss(
-            pp_label, gp_label
-        )
+        adv_loss_D = self.advLoss(pg_label, gg_label) + self.advLoss(pp_label, gp_label)
         acc_p = (pp_label < 0.5).float()
         acc_g = (pg_label > 0.5).float()
         return adv_loss_G, adv_loss_D, acc_p, acc_g
@@ -388,9 +377,7 @@ class VNNModel(BaseModel):
         R = R.reshape(B, P, 3, 3)
         return R
 
-    def _loss_function(
-        self, data_dict, out_dict={}, optimizer_idx=-1, mode="train"
-    ):
+    def _loss_function(self, data_dict, out_dict={}, optimizer_idx=-1, mode="train"):
         pred_data = self.forward(data_dict)
         self.iters += 1
         if self.cfg.model.check_equiv == True:
@@ -431,9 +418,7 @@ class VNNModel(BaseModel):
                 elif optimizer_idx == 1:  #! idx 1 is for discriminator
                     loss_dict = {}
                     loss_dict["adv_D_loss"] = adv_loss_D
-            loss_dict["adv_accuracy"] = acc.unsqueeze(0).repeat(
-                adv_loss_G.shape[0]
-            )
+            loss_dict["adv_accuracy"] = acc.unsqueeze(0).repeat(adv_loss_G.shape[0])
 
         #! all terms in loss_dict should be (B)
 
@@ -443,10 +428,7 @@ class VNNModel(BaseModel):
         if not self.training:
             pred_data["rot"] = Rotation3D(pred_data["rot"], rot_type="rmat")
             eval_dict = self._calc_metrics(
-                data_dict,
-                pred_data,
-                data_dict["part_trans"],
-                data_dict["part_rot"],
+                data_dict, pred_data, data_dict["part_trans"], data_dict["part_rot"]
             )
             loss_dict.update(eval_dict)
         return loss_dict, pred_data

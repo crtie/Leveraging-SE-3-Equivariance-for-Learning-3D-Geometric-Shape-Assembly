@@ -1,25 +1,24 @@
-import warnings
-
 import torch
 import torch.nn as nn
+import warnings
 from torch.autograd import Function
-from torch.cuda.amp import custom_bwd, custom_fwd
+from torch.cuda.amp import custom_fwd, custom_bwd
+from typing import *
 
 try:
     import pointnet2_ops._ext as _ext
 except ImportError:
-    import glob
-    import os
-    import os.path as osp
-
     from torch.utils.cpp_extension import load
+    import glob
+    import os.path as osp
+    import os
 
     warnings.warn("Unable to load pointnet2_ops cpp extension. JIT Compiling.")
 
     _ext_src_root = osp.join(osp.dirname(__file__), "_ext-src")
-    _ext_sources = glob.glob(
-        osp.join(_ext_src_root, "src", "*.cpp")
-    ) + glob.glob(osp.join(_ext_src_root, "src", "*.cu"))
+    _ext_sources = glob.glob(osp.join(_ext_src_root, "src", "*.cpp")) + glob.glob(
+        osp.join(_ext_src_root, "src", "*.cu")
+    )
     _ext_headers = glob.glob(osp.join(_ext_src_root, "include", "*"))
 
     os.environ["TORCH_CUDA_ARCH_LIST"] = "3.7+PTX;5.0;6.0;6.1;6.2;7.0;7.5"
@@ -327,9 +326,7 @@ class QueryAndGroup(nn.Module):
 
         idx = ball_query(self.radius, self.nsample, xyz, new_xyz)
         xyz_trans = xyz.transpose(1, 2).contiguous()
-        grouped_xyz = grouping_operation(
-            xyz_trans, idx
-        )  # (B, 3, npoint, nsample)
+        grouped_xyz = grouping_operation(xyz_trans, idx)  # (B, 3, npoint, nsample)
         grouped_xyz -= new_xyz.transpose(1, 2).unsqueeze(-1)
 
         if features is not None:

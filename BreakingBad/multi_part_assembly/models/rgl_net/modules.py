@@ -3,6 +3,7 @@ import torch.nn as nn
 
 
 class MLP4(nn.Module):
+
     def __init__(self, feat_len):
         super().__init__()
 

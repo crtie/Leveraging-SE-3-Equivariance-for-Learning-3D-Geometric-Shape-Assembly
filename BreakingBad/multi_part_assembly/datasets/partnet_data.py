@@ -1,7 +1,7 @@
 import os
-
 import numpy as np
-from torch.utils.data import DataLoader, Dataset
+
+from torch.utils.data import Dataset, DataLoader
 
 
 class PartNetPartDataset(Dataset):
@@ -45,11 +45,10 @@ class PartNetPartDataset(Dataset):
         shape_ids = np.load(os.path.join(self.data_dir, data_fn))
         valid_shape_ids = []
         for shape_id in shape_ids:
-            cur_data_fn = os.path.join(
-                self.data_dir, "shape_data", f"{shape_id}_level{self.level}.npy"
-            )
+            cur_data_fn = os.path.join(self.data_dir, 'shape_data',
+                                       f'{shape_id}_level{self.level}.npy')
             cur_data = np.load(cur_data_fn, allow_pickle=True).item()
-            num_parts = cur_data["part_pcs"].shape[0]
+            num_parts = cur_data['part_pcs'].shape[0]
             if self.min_num_part <= num_parts <= self.max_num_part:
                 valid_shape_ids.append(shape_id)
         return valid_shape_ids
@@ -57,19 +56,18 @@ class PartNetPartDataset(Dataset):
     def _pad_data(self, data):
         """Pad data to shape [`self.max_num_part`, data.shape[1], ...]."""
         data = np.array(data)
-        pad_shape = (self.max_num_part,) + tuple(data.shape[1:])
+        pad_shape = (self.max_num_part, ) + tuple(data.shape[1:])
         pad_data = np.zeros(pad_shape, dtype=np.float32)
-        pad_data[: data.shape[0]] = data
+        pad_data[:data.shape[0]] = data
         return pad_data
 
     def __getitem__(self, index):
         shape_id = self.shape_ids[index]
-        cur_data_fn = os.path.join(
-            self.data_dir, "shape_data", f"{shape_id}_level{self.level}.npy"
-        )
+        cur_data_fn = os.path.join(self.data_dir, 'shape_data',
+                                   f'{shape_id}_level{self.level}.npy')
         cur_data = np.load(cur_data_fn, allow_pickle=True).item()
 
-        num_parts = cur_data["part_pcs"].shape[0]  # let's call it `p`
+        num_parts = cur_data['part_pcs'].shape[0]  # let's call it `p`
         assert self.min_num_part <= num_parts <= self.max_num_part
         """
         `cur_data` is dict stored in separate npz files with following keys:
@@ -147,58 +145,55 @@ class PartNetPartDataset(Dataset):
 
         data_dict = {}
         # part point clouds
-        cur_pts = cur_data["part_pcs"]  # p x N x 3
-        data_dict["part_pcs"] = self._pad_data(cur_pts)
+        cur_pts = cur_data['part_pcs']  # p x N x 3
+        data_dict['part_pcs'] = self._pad_data(cur_pts)
         # part poses
-        cur_pose = cur_data["part_poses"]  # p x (3 + 4)
+        cur_pose = cur_data['part_poses']  # p x (3 + 4)
         cur_pose = self._pad_data(cur_pose)
-        data_dict["part_trans"] = cur_pose[:, :3]
-        data_dict["part_quat"] = cur_pose[:, 3:]
+        data_dict['part_trans'] = cur_pose[:, :3]
+        data_dict['part_quat'] = cur_pose[:, 3:]
         # valid part masks
         valids = np.zeros((self.max_num_part), dtype=np.float32)
-        valids[:num_parts] = 1.0
-        data_dict["part_valids"] = valids
+        valids[:num_parts] = 1.
+        data_dict['part_valids'] = valids
         # data_id and shape_id
-        data_dict["data_id"] = index
-        data_dict["shape_id"] = int(shape_id)
+        data_dict['data_id'] = index
+        data_dict['shape_id'] = int(shape_id)
         # we always need instance_label in semantic assembly
-        instance_label = np.zeros(
-            (self.max_num_part, self.max_num_part), dtype=np.float32
-        )
-        cur_part_ids = cur_data["geo_part_ids"]  # p
+        instance_label = np.zeros((self.max_num_part, self.max_num_part),
+                                  dtype=np.float32)
+        cur_part_ids = cur_data['geo_part_ids']  # p
         num_per_class = [0 for _ in range(max(cur_part_ids) + 1)]
         for j in range(num_parts):
             cur_class = int(cur_part_ids[j])
             cur_instance = int(num_per_class[cur_class])
             instance_label[j, cur_instance] = 1
             num_per_class[int(cur_part_ids[j])] += 1
-        data_dict["instance_label"] = instance_label
+        data_dict['instance_label'] = instance_label
         # check whether we need part_label
         # if yes, make it one_hot encoding
         # if no, we still make a zero-length vector for compatibility
-        if "part_label" in self.data_keys:
-            cur_label = np.array(cur_data["part_ids"])  # p
+        if 'part_label' in self.data_keys:
+            cur_label = np.array(cur_data['part_ids'])  # p
             cur_label -= 1  # -1 because labels in npy files start from 1
-            cur_one_hot_label = np.zeros(
-                (num_parts, self.num_part_category), dtype=np.float32
-            )
-            cur_one_hot_label[np.arange(num_parts), cur_label] = 1.0
-            data_dict["part_label"] = self._pad_data(cur_one_hot_label)
+            cur_one_hot_label = np.zeros((num_parts, self.num_part_category),
+                                         dtype=np.float32)
+            cur_one_hot_label[np.arange(num_parts), cur_label] = 1.
+            data_dict['part_label'] = self._pad_data(cur_one_hot_label)
         else:
-            data_dict["part_label"] = np.zeros(
-                (self.max_num_part, 0), dtype=np.float32
-            )
+            data_dict['part_label'] = np.zeros((self.max_num_part, 0),
+                                               dtype=np.float32)
 
         for key in self.data_keys:
-            if key == "part_label":
+            if key == 'part_label':
                 continue
 
-            elif key == "part_ids":
-                cur_part_ids = cur_data["geo_part_ids"]  # p
-                data_dict["part_ids"] = self._pad_data(cur_part_ids)
+            elif key == 'part_ids':
+                cur_part_ids = cur_data['geo_part_ids']  # p
+                data_dict['part_ids'] = self._pad_data(cur_part_ids)
 
-            elif key == "match_ids":
-                cur_part_ids = cur_data["geo_part_ids"]  # p
+            elif key == 'match_ids':
+                cur_part_ids = cur_data['geo_part_ids']  # p
                 out = self._pad_data(cur_part_ids)
                 index = 1
                 for i in range(1, int(out.max() + 1)):
@@ -210,37 +205,34 @@ class PartNetPartDataset(Dataset):
                     else:
                         out[idx] = index
                         index += 1
-                data_dict["match_ids"] = out
+                data_dict['match_ids'] = out
 
-            elif key == "contact_points":
+            elif key == 'contact_points':
                 # `cur_contacts` is a p x p x 4 contact matrix
                 # The first item: 1 --> two parts are connecting, otherwise 0
                 # The remaining three items: the contact point coordinate
                 cur_contact_data_fn = os.path.join(
-                    self.data_dir,
-                    "contact_points",
-                    f"pairs_with_contact_points_{shape_id}_level{self.level}.npy",
+                    self.data_dir, 'contact_points',
+                    f'pairs_with_contact_points_{shape_id}_level{self.level}.npy'
                 )
                 cur_contacts = np.load(cur_contact_data_fn, allow_pickle=True)
-                out = np.zeros(
-                    (self.max_num_part, self.max_num_part, 4), dtype=np.float32
-                )
+                out = np.zeros((self.max_num_part, self.max_num_part, 4),
+                               dtype=np.float32)
                 out[:num_parts, :num_parts] = cur_contacts
-                data_dict["contact_points"] = out
+                data_dict['contact_points'] = out
 
-            elif key == "sym":
-                cur_sym = cur_data["sym"]  # p x 3
-                data_dict["sym"] = self._pad_data(cur_sym)
+            elif key == 'sym':
+                cur_sym = cur_data['sym']  # p x 3
+                data_dict['sym'] = self._pad_data(cur_sym)
 
-            elif key == "valid_matrix":
-                out = np.zeros(
-                    (self.max_num_part, self.max_num_part), dtype=np.float32
-                )
-                out[:num_parts, :num_parts] = 1.0
-                data_dict["valid_matrix"] = out
+            elif key == 'valid_matrix':
+                out = np.zeros((self.max_num_part, self.max_num_part),
+                               dtype=np.float32)
+                out[:num_parts, :num_parts] = 1.
+                data_dict['valid_matrix'] = out
 
             else:
-                raise ValueError(f"ERROR: unknown data {key}")
+                raise ValueError(f'ERROR: unknown data {key}')
 
         return data_dict
 
@@ -251,7 +243,7 @@ class PartNetPartDataset(Dataset):
 def build_partnet_dataloader(cfg):
     data_dict = dict(
         data_dir=cfg.data.data_dir,
-        data_fn=cfg.data.data_fn.format("train"),
+        data_fn=cfg.data.data_fn.format('train'),
         data_keys=cfg.data.data_keys,
         num_part_category=cfg.data.num_part_category,
         min_num_part=cfg.data.min_num_part,
@@ -270,8 +262,8 @@ def build_partnet_dataloader(cfg):
         persistent_workers=(cfg.exp.num_workers > 0),
     )
 
-    data_dict["data_fn"] = cfg.data.data_fn.format("val")
-    data_dict["shuffle_parts"] = False
+    data_dict['data_fn'] = cfg.data.data_fn.format('val')
+    data_dict['shuffle_parts'] = False
     val_set = PartNetPartDataset(**data_dict)
     val_loader = DataLoader(
         dataset=val_set,

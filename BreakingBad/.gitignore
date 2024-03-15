@@ -134,6 +134,3 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-BreakingBad/*.egg-info
-BreakingBad/multi_part_assembly/*.egg-info
-

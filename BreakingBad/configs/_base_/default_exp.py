@@ -4,8 +4,8 @@ from yacs.config import CfgNode as CN
 
 # Experiment related
 _C = CN()
-_C.ckp_dir = "checkpoint/"
-_C.weight_file = ""
+_C.ckp_dir = 'checkpoint/'
+_C.weight_file = ''
 _C.gpus = [0]
 _C.num_workers = 8
 _C.batch_size = 32

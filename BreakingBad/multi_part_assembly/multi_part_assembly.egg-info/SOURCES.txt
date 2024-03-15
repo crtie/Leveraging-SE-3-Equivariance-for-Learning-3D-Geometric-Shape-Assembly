@@ -1,4 +1,5 @@
 LICENSE
+README.md
 setup.py
 multi_part_assembly/__init__.py
 multi_part_assembly/version.py
