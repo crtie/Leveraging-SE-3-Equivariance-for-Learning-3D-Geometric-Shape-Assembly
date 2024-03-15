@@ -30,15 +30,15 @@ def normalize_rot6d(rot):
 class PoseRegressor(nn.Module):
     """MLP-based regressor for translation and rotation prediction."""
 
-    def __init__(self, feat_dim, rot_type='quat', norm_rot=True):
+    def __init__(self, feat_dim, rot_type="quat", norm_rot=True):
         super().__init__()
 
-        if rot_type == 'quat':
+        if rot_type == "quat":
             rot_dim = 4
-        elif rot_type == 'rmat':
+        elif rot_type == "rmat":
             rot_dim = 6  # 6D representation from the CVPR'19 paper
         else:
-            raise NotImplementedError(f'rotation {rot_type} is not supported')
+            raise NotImplementedError(f"rotation {rot_type} is not supported")
         self.rot_type = rot_type
         self.norm_rot = norm_rot
 
@@ -60,9 +60,9 @@ class PoseRegressor(nn.Module):
         f = self.fc_layers(x)
         rot = self.rot_head(f)  # [B, 4/6] or [B, P, 4/6]
         if self.norm_rot:
-            if self.rot_type == 'quat':
+            if self.rot_type == "quat":
                 rot = F.normalize(rot, p=2, dim=-1)
-            elif self.rot_type == 'rmat':
+            elif self.rot_type == "rmat":
                 rot = normalize_rot6d(rot)
         trans = self.trans_head(f)  # [B, 3] or [B, P, 3]
         return rot, trans
@@ -71,7 +71,7 @@ class PoseRegressor(nn.Module):
 class StocasticPoseRegressor(PoseRegressor):
     """Stochastic pose regressor with noise injection."""
 
-    def __init__(self, feat_dim, noise_dim, rot_type='quat', norm_rot=True):
+    def __init__(self, feat_dim, noise_dim, rot_type="quat", norm_rot=True):
         super().__init__(feat_dim + noise_dim, rot_type, norm_rot)
 
         self.noise_dim = noise_dim

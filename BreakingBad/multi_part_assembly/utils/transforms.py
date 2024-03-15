@@ -12,16 +12,16 @@ Transformation functions. Adopted from:
 #
 
 import numpy as np
-from scipy.spatial.transform import Rotation as R
-
 import torch
-
-from pytorch3d.transforms import quaternion_invert, quaternion_apply, \
-    quaternion_raw_multiply
+from pytorch3d.transforms import (
+    matrix_to_quaternion,
+    quaternion_apply,
+    quaternion_invert,
+    quaternion_raw_multiply,
+    quaternion_to_matrix,
+)
 from pytorch3d.transforms import random_quaternions as _random_quaternions
-from pytorch3d.transforms import matrix_to_quaternion, matrix_to_axis_angle, \
-    quaternion_to_matrix, quaternion_to_axis_angle, \
-    axis_angle_to_quaternion, axis_angle_to_matrix
+from scipy.spatial.transform import Rotation as R
 
 from .rotation import Rotation3D
 
@@ -212,12 +212,12 @@ def rot_pc(rot, pc, rot_type=None):
     else:
         assert isinstance(rot, torch.Tensor)
         r = rot
-    if rot_type == 'quat':
+    if rot_type == "quat":
         return qrot(r, pc)
-    elif rot_type == 'rmat':
+    elif rot_type == "rmat":
         return rmat_rot(r, pc)
     else:
-        raise NotImplementedError(f'{rot.rot_type} is not supported')
+        raise NotImplementedError(f"{rot.rot_type} is not supported")
 
 
 def transform_pc(trans, rot, pc, rot_type=None):
@@ -236,12 +236,12 @@ def transform_pc(trans, rot, pc, rot_type=None):
     else:
         assert isinstance(rot, torch.Tensor)
         r = rot
-    if rot_type == 'quat':
+    if rot_type == "quat":
         return qtransform(trans, r, pc)
-    elif rot_type == 'rmat':
+    elif rot_type == "rmat":
         return rmat_transform(trans, r, pc)
     else:
-        raise NotImplementedError(f'{rot_type} is not supported')
+        raise NotImplementedError(f"{rot_type} is not supported")
 
 
 # Numpy-backed implementations

@@ -1,13 +1,14 @@
 import os
-from yacs.config import CfgNode as CN
+
 from multi_part_assembly.utils import merge_cfg
+from yacs.config import CfgNode as CN
 
 _base_ = {
-    'exp': '../_base_/default_exp.py',
-    'data': '../_base_/datasets/breaking_bad/everyday.py',
-    'optimizer': '../_base_/schedules/adam_cosine.py',
-    'model': '../_base_/models/lstm.py',
-    'loss': '../_base_/models/loss/geometric_loss.py',
+    "exp": "../_base_/default_exp.py",
+    "data": "../_base_/datasets/breaking_bad/everyday.py",
+    "optimizer": "../_base_/schedules/adam_cosine.py",
+    "model": "../_base_/models/lstm.py",
+    "loss": "../_base_/models/loss/geometric_loss.py",
 }
 
 # Miscellaneous configs
@@ -17,6 +18,6 @@ _C = CN()
 def get_cfg_defaults():
     base_cfg = _C.clone()
     cfg = merge_cfg(base_cfg, os.path.dirname(__file__), _base_)
-    cfg.data.data_fn = 'everyday.overfit.{}.txt'
+    cfg.data.data_fn = "everyday.overfit.{}.txt"
     cfg.data.min_num_part = 3
     return cfg

@@ -1,7 +1,9 @@
 import torch
-
-from multi_part_assembly.models import BaseModel
-from multi_part_assembly.models import build_encoder, StocasticPoseRegressor
+from multi_part_assembly.models import (
+    BaseModel,
+    StocasticPoseRegressor,
+    build_encoder,
+)
 
 from .transformer import TransformerEncoder
 
@@ -59,7 +61,7 @@ class PNTransformer(BaseModel):
     def _extract_part_feats(self, part_pcs, part_valids):
         """Extract per-part point cloud features."""
         B, P, N, _ = part_pcs.shape  # [B, P, N, 3]
-        valid_mask = (part_valids == 1)
+        valid_mask = part_valids == 1
         # shared-weight encoder
         valid_pcs = part_pcs[valid_mask]  # [n, N, 3]
         valid_feats = self.encoder(valid_pcs)  # [n, C]
@@ -80,26 +82,26 @@ class PNTransformer(BaseModel):
             may contains:
                 - pre_pose_feats: [B, P, C'] (reused) or None
         """
-        feats = data_dict.get('pre_pose_feats', None)
+        feats = data_dict.get("pre_pose_feats", None)
 
         if feats is None:
-            part_pcs = data_dict['part_pcs']
-            part_valids = data_dict['part_valids']
+            part_pcs = data_dict["part_pcs"]
+            part_valids = data_dict["part_valids"]
             pc_feats = self._extract_part_feats(part_pcs, part_valids)
             # transformer feature fusion
-            valid_mask = (part_valids == 1)
+            valid_mask = part_valids == 1
             corr_feats = self.corr_module(pc_feats, valid_mask)  # [B, P, C]
             # MLP predict poses
-            part_label = data_dict['part_label'].type_as(corr_feats)
-            inst_label = data_dict['instance_label'].type_as(corr_feats)
+            part_label = data_dict["part_label"].type_as(corr_feats)
+            inst_label = data_dict["instance_label"].type_as(corr_feats)
             feats = torch.cat([corr_feats, part_label, inst_label], dim=-1)
         rot, trans = self.pose_predictor(feats)
         rot = self._wrap_rotation(rot)
 
         pred_dict = {
-            'rot': rot,  # [B, P, 4/(3, 3)], Rotation3D
-            'trans': trans,  # [B, P, 3]
-            'pre_pose_feats': feats,  # [B, P, C']
+            "rot": rot,  # [B, P, 4/(3, 3)], Rotation3D
+            "trans": trans,  # [B, P, 3]
+            "pre_pose_feats": feats,  # [B, P, C']
         }
         return pred_dict
 
@@ -119,21 +121,21 @@ class PNTransformer(BaseModel):
             several times and select the min one as final loss.
             Also returns computed features before pose regressing for reusing.
         """
-        part_pcs, valids = data_dict['part_pcs'], data_dict['part_valids']
+        part_pcs, valids = data_dict["part_pcs"], data_dict["part_valids"]
         forward_dict = {
-            'part_pcs': part_pcs,
-            'part_valids': valids,
-            'part_label': data_dict['part_label'],
-            'instance_label': data_dict['instance_label'],
-            'pre_pose_feats': out_dict.get('pre_pose_feats', None),
+            "part_pcs": part_pcs,
+            "part_valids": valids,
+            "part_label": data_dict["part_label"],
+            "instance_label": data_dict["instance_label"],
+            "pre_pose_feats": out_dict.get("pre_pose_feats", None),
         }
 
         # prediction
         out_dict = self.forward(forward_dict)
-        pre_pose_feats = out_dict['pre_pose_feats']
+        pre_pose_feats = out_dict["pre_pose_feats"]
 
         # loss computation
         loss_dict, out_dict = self._calc_loss(out_dict, data_dict)
-        out_dict['pre_pose_feats'] = pre_pose_feats
+        out_dict["pre_pose_feats"] = pre_pose_feats
 
         return loss_dict, out_dict

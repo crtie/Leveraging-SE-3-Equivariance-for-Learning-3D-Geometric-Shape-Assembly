@@ -1,11 +1,9 @@
 import copy
-import math
 
 import torch
 
-from .loss import _valid_mean, geodesic_distance
 from .chamfer import chamfer_distance
-from .rotation import Rotation3D
+from .loss import _valid_mean, geodesic_distance
 from .transforms import transform_pc
 
 
@@ -76,11 +74,11 @@ def calc_connectivity_acc(trans, rot, contact_points):
         # trans/rot: [num_contact, 3/4/(3, 3)]
         points1 = transform_pc(trans1, rot1, points1, rot_type=rot_type)
         points2 = transform_pc(trans2, rot2, points2, rot_type=rot_type)
-        dist = ((points1[:, :, None] - points2[:, None, :])**2).sum(-1)
+        dist = ((points1[:, :, None] - points2[:, None, :]) ** 2).sum(-1)
         return dist.min(-1)[0].min(-1)[0]  # [num_contact]
 
     # find all contact points
-    mask = (contact_points[..., 0] == 1)  # [B, P, P]
+    mask = contact_points[..., 0] == 1  # [B, P, P]
     # points1 = contact_points[mask][..., 1:]
     # TODO: more efficient way of getting paired contact points?
     points1, points2, trans1, trans2, rot1, rot2 = [], [], [], [], [], []
@@ -156,11 +154,11 @@ def trans_metrics(trans1, trans2, valids, metric):
     Returns:
         [B], metric per data in the batch
     """
-    assert metric in ['mse', 'rmse', 'mae']
-    if metric == 'mse':
+    assert metric in ["mse", "rmse", "mae"]
+    if metric == "mse":
         metric_per_data = (trans1 - trans2).pow(2).mean(dim=-1)  # [B, P]
-    elif metric == 'rmse':
-        metric_per_data = (trans1 - trans2).pow(2).mean(dim=-1)**0.5
+    elif metric == "rmse":
+        metric_per_data = (trans1 - trans2).pow(2).mean(dim=-1) ** 0.5
     else:
         metric_per_data = (trans1 - trans2).abs().mean(dim=-1)
     metric_per_data = _valid_mean(metric_per_data, valids)
@@ -182,18 +180,18 @@ def rot_metrics(rot1, rot2, valids, metric):
     Returns:
         [B], metric per data in the batch
     """
-    assert metric in ['mse', 'rmse', 'mae', 'geodesic']
+    assert metric in ["mse", "rmse", "mae", "geodesic"]
     deg1 = rot1.to_euler(to_degree=True)  # [B, P, 3]
     deg2 = rot2.to_euler(to_degree=True)
     diff1 = (deg1 - deg2).abs()
-    diff2 = 360. - (deg1 - deg2).abs()
+    diff2 = 360.0 - (deg1 - deg2).abs()
     # since euler angle has the discontinuity at 180
     diff = torch.minimum(diff1, diff2)
-    if metric == 'mse':
+    if metric == "mse":
         metric_per_data = diff.pow(2).mean(dim=-1)  # [B, P]
-    elif metric == 'rmse':
-        metric_per_data = diff.pow(2).mean(dim=-1)**0.5
-    elif metric == 'geodesic':
+    elif metric == "rmse":
+        metric_per_data = diff.pow(2).mean(dim=-1) ** 0.5
+    elif metric == "geodesic":
         metric_per_data = geodesic_distance(rot1, rot2)
     else:
         metric_per_data = diff.abs().mean(dim=-1)

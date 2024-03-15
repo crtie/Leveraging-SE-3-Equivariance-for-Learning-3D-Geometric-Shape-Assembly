@@ -30,7 +30,8 @@ def build_transformer_encoder(
     )
     norm = nn.LayerNorm(d_model) if norm_first else None
     transformer_encoder = nn.TransformerEncoder(
-        encoder_layer=transformer_enc_layer, num_layers=num_layers, norm=norm)
+        encoder_layer=transformer_enc_layer, num_layers=num_layers, norm=norm
+    )
     return transformer_encoder
 
 
@@ -57,8 +58,11 @@ class TransformerEncoder(nn.Module):
             norm_first=norm_first,
             dropout=dropout,
         )
-        self.out_fc = nn.Linear(d_model, out_dim) if \
-            out_dim is not None else nn.Identity()
+        self.out_fc = (
+            nn.Linear(d_model, out_dim)
+            if out_dim is not None
+            else nn.Identity()
+        )
 
     def forward(self, tokens, valid_masks):
         """Forward pass.
@@ -72,7 +76,7 @@ class TransformerEncoder(nn.Module):
         """
         if valid_masks is not None:
             assert valid_masks.shape == tokens.shape[:2]
-            pad_masks = (~valid_masks)  # True --> padding
+            pad_masks = ~valid_masks  # True --> padding
         else:
             pad_masks = None
         out = self.transformer_encoder(tokens, src_key_padding_mask=pad_masks)

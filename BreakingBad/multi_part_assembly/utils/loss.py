@@ -1,9 +1,10 @@
 import torch
 
-from .transforms import rot_pc, transform_pc
 from .chamfer import chamfer_distance
 from .rotation import Rotation3D
-from pdb import set_trace 
+from .transforms import rot_pc, transform_pc
+
+
 def _valid_mean(loss_per_part, valids):
     """Average loss values according to the valid parts.
 
@@ -46,7 +47,7 @@ def rot_l2_loss(rot1, rot2, valids):
     Returns:
         [B], loss per data in the batch
     """
-    assert rot1.rot_type == rot2.rot_type == 'quat'
+    assert rot1.rot_type == rot2.rot_type == "quat"
     quat1, quat2 = rot1.rot, rot2.rot
     # since quat == -quat
     rot_l2_1 = (quat1 - quat2).pow(2).sum(dim=-1)  # [B, P]
@@ -70,18 +71,22 @@ def rot_cosine_loss(rot1, rot2, valids):
     assert rot1.rot_type == rot2.rot_type
     rot_type = rot1.rot_type
     # cosine distance
-    if rot_type == 'quat':
+    if rot_type == "quat":
         quat1, quat2 = rot1.rot, rot2.rot
-        loss_per_data = 1. - torch.abs(torch.sum(quat1 * quat2, dim=-1))
+        loss_per_data = 1.0 - torch.abs(torch.sum(quat1 * quat2, dim=-1))
     # |I - R1^T @ R2|^2
-    elif rot_type == 'rmat':
+    elif rot_type == "rmat":
         B = rot1.shape[0]
         rmat1, rmat2 = rot1.rot.view(-1, 3, 3), rot2.rot.view(-1, 3, 3)
         iden = torch.eye(3).unsqueeze(0).type_as(rmat1)
-        loss_per_data = (iden - torch.bmm(rmat1.transpose(1, 2), rmat2)).\
-            pow(2).mean(dim=[-1, -2]).view(B, -1)
+        loss_per_data = (
+            (iden - torch.bmm(rmat1.transpose(1, 2), rmat2))
+            .pow(2)
+            .mean(dim=[-1, -2])
+            .view(B, -1)
+        )
     else:
-        raise NotImplementedError(f'cosine loss not supported for {rot_type}')
+        raise NotImplementedError(f"cosine loss not supported for {rot_type}")
     loss_per_data = _valid_mean(loss_per_data, valids)
     return loss_per_data
 
@@ -218,11 +223,15 @@ def repulsion_cd_loss(part_pcs, valids, thre):
     pts2 = part_pcs.unsqueeze(1).repeat_interleave(P, dim=1).flatten(0, 2)
     dist1, dist2 = chamfer_distance(pts1, pts2)  # [B*P*P, N]
     cd = torch.mean(dist1, dim=1) + torch.mean(dist2, dim=1)  # [B*P*P]
-    cd = torch.clamp_min(thre - cd.view(B, P, P), min=0.)  # [B, P, P]
-    valid_mask = torch.ones(B, P, P).type_as(valids) * \
-        valids[:, :, None] * valids[:, None, :]
+    cd = torch.clamp_min(thre - cd.view(B, P, P), min=0.0)  # [B, P, P]
+    valid_mask = (
+        torch.ones(B, P, P).type_as(valids)
+        * valids[:, :, None]
+        * valids[:, None, :]
+    )
     loss_per_data = (cd * valid_mask).sum([1, 2]) / valid_mask.sum([1, 2])
     return loss_per_data
+
 
 def geodesic_distance(rot1, rot2):
     """Compute geodesic distance between two rotations.
@@ -237,20 +246,20 @@ def geodesic_distance(rot1, rot2):
     B, P = rot1.shape[:2]
     if isinstance(rot1, Rotation3D):
         pass
-    elif rot1.shape[-1] == 3: 
-        rot1 = Rotation3D(rot1, 'rmat')
-    else: 
-        rot1 = Rotation3D(rot1, 'quat')
+    elif rot1.shape[-1] == 3:
+        rot1 = Rotation3D(rot1, "rmat")
+    else:
+        rot1 = Rotation3D(rot1, "quat")
     if isinstance(rot2, Rotation3D):
         pass
-    elif rot2.shape[-1] == 3: 
-        rot2 = Rotation3D(rot2, 'rmat')
+    elif rot2.shape[-1] == 3:
+        rot2 = Rotation3D(rot2, "rmat")
     else:
-        rot2 = Rotation3D(rot2, 'quat')
-    R1 = rot1.to_rmat().reshape(B*P, 3, 3)
-    R2 = rot2.to_rmat().reshape(B*P, 3, 3)
+        rot2 = Rotation3D(rot2, "quat")
+    R1 = rot1.to_rmat().reshape(B * P, 3, 3)
+    R2 = rot2.to_rmat().reshape(B * P, 3, 3)
     Rds = torch.bmm(R1.permute(0, 2, 1), R2)
-    Rt = torch.sum(Rds[:, torch.eye(3).bool()], 1) #batch trace
+    Rt = torch.sum(Rds[:, torch.eye(3).bool()], 1)  # batch trace
     # necessary or it might lead to nans and the likes
     theta = torch.clamp(0.5 * (Rt - 1), -1 + 1e-6, 1 - 1e-6)
     return torch.acos(theta).reshape(B, P)

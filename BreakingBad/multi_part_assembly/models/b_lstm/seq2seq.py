@@ -1,16 +1,14 @@
 """Code borrowed from https://github.com/hyperplane-lab/Generative-3D-Part-Assembly/blob/main/exps/Baseline-LSTM/models/model.py"""
 
 import random
-import numpy as np
 
+import numpy as np
 import torch
 import torch.nn as nn
-
 from multi_part_assembly.models import RNNWrapper
 
 
 class EncoderRNN(nn.Module):
-
     def __init__(
         self,
         input_size,
@@ -56,7 +54,6 @@ class EncoderRNN(nn.Module):
 
 
 class DecoderRNN(nn.Module):
-
     def __init__(
         self,
         input_size,
@@ -153,8 +150,9 @@ class Seq2Seq(nn.Module):
         :return:
             h_n: (num_layers * num_directions, batch, hidden_size)
         """
-        encoder_init_hidden = \
-            self.encoder.rnn.init_hidden.repeat(1, batch_size, 1).cuda()
+        encoder_init_hidden = self.encoder.rnn.init_hidden.repeat(
+            1, batch_size, 1
+        ).cuda()
         _, hidden = self.encoder(input_seq, encoder_init_hidden, valids=valids)
         hidden = hidden.view(self.n_layer, 2, batch_size, -1)
         hidden0, hidden1 = torch.split(hidden, 1, 1)
@@ -169,24 +167,33 @@ class Seq2Seq(nn.Module):
     ):
         batch_size = target_seq.size(1)
         target_length = target_seq.size(0)
-        decoder_input = \
+        decoder_input = (
             self.decoder.init_input.detach().repeat(1, batch_size, 1).cuda()
+        )
 
         # Teacher forcing: Feed the target as the next input
         # Without teacher forcing: use its own predictions as the next input
-        use_teacher_forcing = True if \
-            random.random() < teacher_forcing_ratio else False
+        use_teacher_forcing = (
+            True if random.random() < teacher_forcing_ratio else False
+        )
 
         decoder_outputs = []
         stop_signs = []
         for di in range(target_length):
-            decoder_output, decoder_hidden, output_seq, stop_sign = \
-                self.decoder(decoder_input, decoder_hidden)
+            (
+                decoder_output,
+                decoder_hidden,
+                output_seq,
+                stop_sign,
+            ) = self.decoder(decoder_input, decoder_hidden)
             decoder_outputs.append(output_seq)
             stop_signs.append(stop_sign)
             # using target seq as input or not
-            decoder_input = target_seq[di:di + 1] if \
-                use_teacher_forcing else output_seq.detach().unsqueeze(0)
+            decoder_input = (
+                target_seq[di : di + 1]
+                if use_teacher_forcing
+                else output_seq.detach().unsqueeze(0)
+            )
         decoder_outputs = torch.stack(decoder_outputs, dim=0)
         stop_signs = torch.stack(stop_signs, dim=0)
         return decoder_outputs, stop_signs
@@ -219,12 +226,12 @@ class Seq2Seq(nn.Module):
         encoder_hidden = self.infer_encoder(input_seq, valids, batch_size)
         decoder_hidden = torch.cat([encoder_hidden, random_noise], dim=2)
         decoder_outputs, stop_signs = self.infer_decoder(
-            decoder_hidden, target_seq, teacher_forcing_ratio)
+            decoder_hidden, target_seq, teacher_forcing_ratio
+        )
         return decoder_outputs, stop_signs
 
 
 class LockedDropout(nn.Module):
-
     def __init__(self):
         super().__init__()
 
